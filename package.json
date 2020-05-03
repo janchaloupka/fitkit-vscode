@@ -15,8 +15,9 @@
 		"url": "https://github.com/janch32/fitkit-vscode.git"
 	},
 	"homepage": "https://github.com/janch32/fitkit-vscode",
+	"icon": "resources/icon.png",
 	"engines": {
-		"vscode": "^1.42.0"
+		"vscode": "^1.44.0"
 	},
 	"categories": [
 		"Other"
