@@ -1,0 +1,291 @@
+{
+	"name": "fitkit",
+	"displayName": "FITkit",
+	"description": "FITkit extension for Visual Studio Code",
+	"version": "1.0.0",
+	"publisher": "janchaloupka",
+	"preview": true,
+	"keywords": [
+		"fitkit",
+		"vut",
+		"fit"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/janch32/fitkit-vscode.git"
+	},
+	"homepage": "https://github.com/janch32/fitkit-vscode",
+	"engines": {
+		"vscode": "^1.42.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"workspaceContains:project.xml",
+		"onView:fitkit.repositoryView"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "fitkit.auth.invalidate",
+				"title": "Remove auth token from this editor",
+				"category": "FITkit"
+			},
+			{
+				"command": "fitkit.repository.refreshView",
+				"title": "Refresh",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "fitkit.repository.openProject",
+				"title": "Open project"
+			},
+			{
+				"command": "fitkit.repository.rename",
+				"title": "Rename"
+			},
+			{
+				"command": "fitkit.repository.deleteFolder",
+				"title": "Permanently delete"
+			},
+			{
+				"command": "fitkit.repository.openFolderInOS",
+				"title": "Open in file explorer"
+			},
+			{
+				"command": "fitkit.repository.openRootInOS",
+				"title": "Open repository in file explorer",
+				"enablement": "fitkit.repository.available"
+			},
+			{
+				"command": "fitkit.repository.download",
+				"title": "Download repository",
+				"icon": "$(cloud-download)"
+			},
+			{
+				"command": "fitkit.repository.redownload",
+				"title": "Redownload repository"
+			},
+			{
+				"command": "fitkit.repository.newCategory",
+				"title": "New category",
+				"icon": "$(new-folder)",
+				"enablement": "fitkit.repository.available"
+			},
+			{
+				"command": "fitkit.repository.createProject",
+				"title": "Create project",
+				"icon": "$(file-add)",
+				"enablement": "fitkit.repository.available"
+			},
+			{
+				"command": "fitkit.project.remoteBuild",
+				"title": "Build opened project (Remote build)",
+				"category": "FITkit",
+				"enablement": "fitkit.project.isOpen"
+			},
+			{
+				"command": "fitkit.project.remoteIsim",
+				"title": "Simulate opened project (Remote ISIM)",
+				"category": "FITkit",
+				"enablement": "fitkit.project.isOpen"
+			},
+			{
+				"command": "fitkit.project.flash",
+				"title": "Flash opened project binaries to connected FITkit device",
+				"category": "FITkit",
+				"enablement": "fitkit.project.isOpen"
+			},
+			{
+				"command": "fitkit.project.openTerminal",
+				"title": "Open terminal on connected FITkit device",
+				"category": "FITkit",
+				"enablement": "fitkit.project.isOpen"
+			},
+			{
+				"command": "fitkit.project.flashAndRun",
+				"title": "Flash and run project binaries on connected FITkit device",
+				"category": "FITkit",
+				"enablement": "fitkit.project.isOpen"
+			}
+		],
+		"configuration": {
+			"title": "FITkit",
+			"properties": {
+				"fitkit.projectRepository.cloneUrl": {
+					"type": "string",
+					"default": "https://files.janchaloupka.cz/FITkitSVN.zip",
+					"description": "Link for downloading zipped repository folder"
+				},
+				"fitkit.projectRepository.path": {
+					"type": [
+						"string"
+					],
+					"default": "fitkitsvn",
+					"description": "Path to local repository folder relative to home directory"
+				},
+				"fitkit.authServer.requestUrl": {
+					"type": [
+						"string"
+					],
+					"default": "https://dev.janchaloupka.cz/fitkit-auth/request-token.php",
+					"description": "Location of auth server endpoint for new token request"
+				},
+				"fitkit.authServer.generateUrl": {
+					"type": [
+						"string"
+					],
+					"default": "https://dev.janchaloupka.cz/fitkit-auth/generate-token.php",
+					"description": "Location of auth server endpoint for user authentification"
+				},
+				"fitkit.remoteBuild.serverAddress": {
+					"type": [
+						"string"
+					],
+					"default": "zakladna.eu:9000",
+					"description": "Address (ip or domain name) of remote build server"
+				}
+			}
+		},
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "fitkit",
+					"title": "FITkit",
+					"icon": "resources/viewcontainer-icon.svg"
+				}
+			]
+		},
+		"views": {
+			"explorer": [
+				{
+					"id": "fitkit.projectView",
+					"name": "FITkit project",
+					"when": "fitkit.project.isOpen"
+				}
+			],
+			"fitkit": [
+				{
+					"id": "fitkit.repositoryView",
+					"name": "Projects"
+				}
+			]
+		},
+		"menus": {
+			"commandPalette": [],
+			"view/title": [
+				{
+					"when": "view == fitkit.repositoryView && fitkit.repository.available",
+					"command": "fitkit.repository.newCategory",
+					"group": "navigation@1"
+				},
+				{
+					"when": "view == fitkit.repositoryView && !fitkit.repository.available",
+					"command": "fitkit.repository.download",
+					"group": "navigation@2"
+				},
+				{
+					"when": "view == fitkit.repositoryView",
+					"command": "fitkit.repository.refreshView",
+					"group": "navigation@3"
+				},
+				{
+					"when": "view == fitkit.repositoryView",
+					"command": "fitkit.repository.openRootInOS",
+					"group": "basic@1"
+				},
+				{
+					"when": "view == fitkit.repositoryView && fitkit.repository.available",
+					"command": "fitkit.repository.redownload",
+					"group": "basic@2"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "fitkit.repository.newCategory",
+					"when": "view == fitkit.repositoryView && viewItem == category",
+					"group": "inline@1"
+				},
+				{
+					"command": "fitkit.repository.createProject",
+					"when": "view == fitkit.repositoryView && viewItem == category",
+					"group": "inline@2"
+				},
+				{
+					"command": "fitkit.repository.newCategory",
+					"when": "view == fitkit.repositoryView && viewItem == category",
+					"group": "navigation@2"
+				},
+				{
+					"command": "fitkit.repository.createProject",
+					"when": "view == fitkit.repositoryView && viewItem == category",
+					"group": "navigation@1"
+				},
+				{
+					"command": "fitkit.repository.openProject",
+					"when": "view == fitkit.repositoryView && viewItem == project",
+					"group": "navigation@1"
+				},
+				{
+					"command": "fitkit.repository.rename",
+					"when": "view == fitkit.repositoryView && viewItem == category",
+					"group": "1_basic@1"
+				},
+				{
+					"command": "fitkit.repository.openFolderInOS",
+					"when": "view == fitkit.repositoryView",
+					"group": "1_basic@2"
+				},
+				{
+					"command": "fitkit.repository.deleteFolder",
+					"when": "view == fitkit.repositoryView",
+					"group": "1_basic@3"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "ttsc -p ./",
+		"lint": "eslint src --ext ts",
+		"watch": "ttsc -watch -p ./"
+	},
+	"devDependencies": {
+		"@types/fullname": "^2.1.29",
+		"@types/glob": "^7.1.1",
+		"@types/latinize": "^0.2.15",
+		"@types/mocha": "^7.0.1",
+		"@types/node": "^12.11.7",
+		"@types/request-promise-native": "^1.0.17",
+		"@types/unzipper": "^0.10.1",
+		"@types/vscode": "^1.42.0",
+		"@types/websocket": "^1.0.0",
+		"@typescript-eslint/eslint-plugin": "^2.18.0",
+		"@typescript-eslint/parser": "^2.18.0",
+		"eslint": "^6.8.0",
+		"glob": "^7.1.6",
+		"mocha": "^7.0.1",
+		"ttypescript": "^1.5.10",
+		"typescript": "^3.7.5"
+	},
+	"dependencies": {
+		"colors": "^1.4.0",
+		"fast-xml-parser": "git+https://github.com/MaartenX/fast-xml-parser.git#feature/197",
+		"fullname": "^4.0.1",
+		"jsonwebtoken": "^8.5.1",
+		"latinize": "^0.4.0",
+		"moment": "^2.24.0",
+		"open": "^7.0.3",
+		"request": "^2.88.0",
+		"request-promise-native": "^1.0.8",
+		"typescript-is": "^0.14.1",
+		"unzipper": "^0.10.8",
+		"websocket": "^1.0.31"
+	},
+	"extensionDependencies": [
+		"ms-vscode.cpptools",
+		"puorc.awesome-vhdl"
+	]
+}

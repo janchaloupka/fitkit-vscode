@@ -1,0 +1,24 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "ES2017",
+		"outDir": "out",
+		"lib": [
+			"ES2017"
+		],
+		"sourceMap": true,
+		"rootDir": "src",
+		"strict": true,
+		"noImplicitReturns": true,
+		"noImplicitAny": true,
+		// "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
+		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
+		"plugins": [
+			{ "transform": "typescript-is/lib/transform-inline/transformer" }
+		]
+	},
+	"exclude": [
+		"node_modules",
+		".vscode-test"
+	]
+}
