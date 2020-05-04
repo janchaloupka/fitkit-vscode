@@ -2,3 +2,6 @@
 - Autorefresh projektů při změně souboru
 - Podpora lokální imulace a překladu
 - Podpora více serverů (distribuovaný překlad)
+- Spuštění prostředí ISE (gmake ise)
+- Simulace konkrétní komponenty (dát možnost na výběr, kterou komponentu simulovat)
+- Podpora více připojených FITkitů

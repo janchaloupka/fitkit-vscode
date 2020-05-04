@@ -300,6 +300,26 @@ export class ProjectDataBuilder{
 		await AppendFpgaFiles(data, project, fpgaProjectRoot);
 		await AppendMcuFiles(data, project, mcuProjectRoot);
 
+		// Přidat soubory simulace (testbench soubory)
+		const simPath = path.join(this.ProjectPath, "fpga", "sim");
+		try{
+			const simFolderContent = await Utils.ReadDirectory(simPath);
+
+			for (const item of simFolderContent) {
+				if(item[1] !== FileType.File) continue;
+				if(!item[0].endsWith(".vhd") && !item[0].endsWith(".vhdl")) continue;
+
+				const filePath = path.join(simPath, item[0]);
+				data.Fpga.Files.push({
+					Path: filePath,
+					Content: (new Buffer(await Utils.ReadFile(filePath))).toString("base64"),
+					SimOnly: true
+				});
+			}
+		}catch(e){
+			console.log("Sim folder does not exist, skipping...");
+		}
+
 		// Odstranit duplikátní soubory (zůstane vždy první reference na soubor)
 		data.Fpga.Files = data.Fpga.Files.filter((f, i) => {
 			let findex = data.Fpga.Files.findIndex(find => find.Path === f.Path);

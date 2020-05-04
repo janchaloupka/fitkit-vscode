@@ -5,7 +5,8 @@ import { Simulation } from '../simulation/Simulation';
 import { ProjectData } from '../models/ProjectData';
 import { Project } from './Project';
 import { ProjectDataBuilder } from './ProjectDataBuilder';
-import { commands, window } from "vscode";
+import { commands, window, workspace } from "vscode";
+import { ExtensionConfig } from '../ExtensionConfig';
 
 /**
  * Implementace příkazů pro práci s projektem
@@ -41,6 +42,9 @@ export class ProjectCommands{
 		let projects = await Project.OpenedProjects();
 		if(projects.length < 0) return;
 
+		// Uložit rozpracované soubory
+		if(ExtensionConfig.SaveOnBuild) await workspace.saveAll(false);
+
 		let data: ProjectData;
 		let build = new ProjectDataBuilder(projects[0]);
 		try{
@@ -75,6 +79,9 @@ export class ProjectCommands{
 		let projects = await Project.OpenedProjects();
 		if(projects.length < 0) return;
 
+		// Uložit rozpracované soubory
+		if(ExtensionConfig.SaveOnBuild) await workspace.saveAll(false);
+
 		let data: ProjectData;
 		let build = new ProjectDataBuilder(projects[0]);
 		try{
@@ -88,7 +95,7 @@ export class ProjectCommands{
 		if(this.Simulation) this.Simulation.Close();
 
 		try{
-			this.Simulation = new Simulation(data);
+			this.Simulation = new Simulation(data, projects[0]);
 			this.Simulation.onDidClose(() => this.Simulation = undefined);
 			await this.Simulation.Init();
 		}catch(e){

@@ -3,10 +3,11 @@ import { ClientMessage } from './../models/ClientMessage';
 import { ServerMessage } from './../models/ServerMessage';
 import { client as WebSocketClient, IClientConfig, connection, IMessage } from "websocket";
 import * as url from "url";
-import { EventEmitter } from 'vscode';
+import { EventEmitter, Disposable, StatusBarItem, window, StatusBarAlignment } from 'vscode';
 import { BuildResult } from '../models/BuildResult';
 import { Authentication } from '../auth/Authentication';
 import { ExtensionConfig } from '../ExtensionConfig';
+import { promises as fs} from "fs";
 
 /**
  * Singleton třída spojení s překladovým serverem
@@ -16,6 +17,9 @@ export class Connection{
 
 	/** Instance WebSocket spojení. Je dostupná až po handshake */
 	private Connection?: connection;
+
+	/** Ukazatel na stavový text zobrazený vespod editoru */
+	private static Status?: StatusBarItem;
 
 	private onDidConnectEmitter = new EventEmitter<void>();
 	private onDidCloseEmitter = new EventEmitter<number>();
@@ -74,6 +78,9 @@ export class Connection{
 	/** Zpráva o obecné chybě, která nastala na serveru */
 	public readonly onServerError = this.onServerErrorEmitter.event;
 
+	/** Specifikovat cestu, kde bude server ukládat log komunikace */
+	public LogPath?: string;
+
 	/** Je navázáno a otevřeno spojení se serverem */
 	public get Connected() : boolean {
 		if(!this.Connection) return false;
@@ -87,7 +94,6 @@ export class Connection{
 		return this.Connection.closeReasonCode > -1;
 	}
 
-
 	/**
 	 * Naváže spojení s překladovým serverem
 	 *
@@ -96,6 +102,15 @@ export class Connection{
 	 * @param config Volitelná konfigurace WebSocket spojení
 	 */
 	public constructor(token: string, host: string, config?: IClientConfig){
+		if(!Connection.Status){
+			Connection.Status = window.createStatusBarItem();
+			Connection.Status.command = "fitkit.disconnect";
+			Connection.Status.tooltip = "Click to disconnect from server";
+		}
+
+		Connection.Status.show();
+		Connection.Status.text = "Connecting to build server...";
+
 		let request = url.parse(`ws://${host}/`);
 		request.port = request.port ?? "9000";
 
@@ -111,6 +126,8 @@ export class Connection{
 			}
 			this.onServerErrorEmitter.fire(errMsg);
 			this.onDidCloseEmitter.fire(-1);
+
+			Connection.Status?.hide();
 		});
 
 		console.log("Connecting to ", request.href, "with token", token);
@@ -127,6 +144,7 @@ export class Connection{
 	 */
 	private Accepted(connection: connection){
 		console.log(`Connected to remote server`);
+		if(Connection.Status) Connection.Status.text = "Connected to build server";
 
 		this.Connection = connection;
 		connection.on("message", data => this.ReceiveMessage(data));
@@ -142,6 +160,7 @@ export class Connection{
 		console.log(`Connection closed (code: ${code})`);
 
 		this.onDidCloseEmitter.fire(code);
+		Connection.Status?.hide();
 	}
 
 	/**
@@ -151,6 +170,10 @@ export class Connection{
 	 */
 	public Send(msg: ClientMessage){
 		if(!this.Connection?.connected) return;
+
+		if(this.LogPath){
+			fs.appendFile(this.LogPath, `[CLIENT] ${JSON.stringify(msg, null, "    ")}\n`);
+		}
 
 		this.Connection.sendUTF(JSON.stringify(msg));
 	}
@@ -172,6 +195,10 @@ export class Connection{
 			console.error("Unknown server message:", data.utf8Data);
 			console.error(e.toString());
 			return;
+		}
+
+		if(this.LogPath){
+			fs.appendFile(this.LogPath, `[SERVER] ${JSON.stringify(msg, null, "    ")}\n`);
 		}
 
 		//console.log(JSON.stringify(msg));
@@ -227,5 +254,11 @@ export class Connection{
 
 		this.ActiveConnection = conn;
 		return conn;
+	}
+
+	public static DisconnectFromServer(){
+		if(this.ActiveConnection?.Connected){
+			this.ActiveConnection.Connection?.close();
+		}
 	}
 }

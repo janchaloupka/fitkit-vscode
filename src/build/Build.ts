@@ -7,6 +7,7 @@ import { VirtualTerminal } from '../common/VirtualTerminal';
 import { window, Terminal, EventEmitter } from 'vscode';
 import * as colors from "colors/safe";
 import { join } from 'path';
+import { ExtensionConfig } from '../ExtensionConfig';
 
 /**
  * Logika pro ovládání a přijímání zpráv o vzdáleném překladu
@@ -61,6 +62,15 @@ export class Build{
 			this.Close();
 			return;
 		}
+
+		if(ExtensionConfig.LogDebugInfo){
+			const logPath = join(this.Path, "server_communication.log");
+			try{
+				await Utils.DeletePath(logPath);
+			}catch(e){}
+			this.Connection.LogPath = logPath;
+		}else
+			this.Connection.LogPath = undefined;
 
 		this.Disposables.push(
 			this.Connection.onBuildBegin(() => this.Begin()),
@@ -152,6 +162,8 @@ export class Build{
 		this.VirtualTerminal.AnyKeyToClose();
 
 		this.onDidCloseEmitter.fire();
+
+		if(this.Connection) this.Connection.LogPath = undefined;
 	}
 
 	private async SaveBinFiles(res: BuildResult){

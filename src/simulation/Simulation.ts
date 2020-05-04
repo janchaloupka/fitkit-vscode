@@ -5,6 +5,9 @@ import { VirtualTerminal } from '../common/VirtualTerminal';
 import { window, Terminal, EventEmitter } from 'vscode';
 import { SimulationView } from './SimulationView';
 import * as colors from "colors/safe";
+import { ExtensionConfig } from '../ExtensionConfig';
+import { join } from 'path';
+import { Utils } from '../common/Utils';
 
 /**
  * Logika pro ovládání a přijímání zpráv o vzdálené simulaci
@@ -17,6 +20,7 @@ export class Simulation{
 	private VirtualTerminal: VirtualTerminal;
 	private ProjectData: ProjectData;
 	private Connection?: Connection;
+	private Path :string;
 
 	/** Seznam všech prvků, které je nutné po ukončení uklidit. Většinou event listenery */
 	private Disposables: Disposable[] = [];
@@ -27,8 +31,9 @@ export class Simulation{
 	/** Došlo k ukončení simulace */
 	public readonly onDidClose = this.onDidCloseEmitter.event;
 
-	public constructor(project: ProjectData){
+	public constructor(project: ProjectData, projectPath: string){
 		this.ProjectData = project;
+		this.Path = projectPath;
 
 		this.VirtualTerminal = new VirtualTerminal();
 		this.Disposables.push(this.VirtualTerminal.onDidClose(() => this.Close()));
@@ -64,6 +69,15 @@ export class Simulation{
 			this.Close();
 			return;
 		}
+
+		if(ExtensionConfig.LogDebugInfo){
+			const logPath = join(this.Path, "server_communication.log");
+			try{
+				await Utils.DeletePath(logPath);
+			}catch(e){}
+			this.Connection.LogPath = logPath;
+		}else
+			this.Connection.LogPath = undefined;
 
 		this.Disposables.push(
 			this.Connection.onIsimBegin(connString => this.Begin(connString)),
@@ -160,5 +174,7 @@ export class Simulation{
 		this.VirtualTerminal.AnyKeyToClose();
 
 		this.onDidCloseEmitter.fire();
+
+		if(this.Connection) this.Connection.LogPath = undefined;
 	}
 }

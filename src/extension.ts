@@ -1,3 +1,4 @@
+import { Connection } from './remote/Connection';
 import { FitkitSerial } from './serial/FitkitSerial';
 import { Authentication } from './auth/Authentication';
 /**
@@ -23,6 +24,11 @@ export function activate(context: ExtensionContext) {
 	}catch(e){
 		window.showWarningMessage("Failed to init module for serial communication. " + e.toString());
 	}
+
+	commands.registerCommand("fitkit.disconnect", () => {
+		Connection.DisconnectFromServer();
+	});
+
 	Repository.Init();
 	Project.Init();
 

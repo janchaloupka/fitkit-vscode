@@ -2,7 +2,7 @@
 	"name": "fitkit",
 	"displayName": "FITkit",
 	"description": "FITkit extension for Visual Studio Code",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"publisher": "janchaloupka",
 	"preview": true,
 	"keywords": [
@@ -147,6 +147,20 @@
 					],
 					"default": "zakladna.eu:9000",
 					"description": "Address (ip or domain name) of remote build server"
+				},
+				"fitkit.saveOnBuild": {
+					"type": [
+						"boolean"
+					],
+					"default": true,
+					"description": "Save all opened files before build/simulation"
+				},
+				"fitkit.logDebugInfo": {
+					"type": [
+						"boolean"
+					],
+					"default": false,
+					"description": "Log debug info about last build/simulation"
 				}
 			}
 		},
