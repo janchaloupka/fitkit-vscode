@@ -1,4 +1,4 @@
-import { Repository } from '../repository/repository';
+import { Repository } from '../repository/Repository';
 import { Utils } from '../common/Utils';
 import { ProjectCommands } from './ProjectCommands';
 import { ProjectView } from "./ProjectView";

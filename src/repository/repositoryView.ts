@@ -1,7 +1,7 @@
 import { Utils } from '../common/Utils';
 import { RepositoryCommands } from './repositoryCommands';
 import { ConfigParser } from '../common/ConfigParser';
-import { Repository } from './repository';
+import { Repository } from './Repository';
 import { window, TreeView, TreeDataProvider, Event, EventEmitter, FileType, TreeItem, TreeItemCollapsibleState, commands } from "vscode";
 import * as path from "path";
 

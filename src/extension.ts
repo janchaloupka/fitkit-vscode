@@ -6,7 +6,7 @@ import { Authentication } from './auth/Authentication';
  */
 
 import { Project } from './project/Project';
-import { Repository } from './repository/repository';
+import { Repository } from './repository/Repository';
 import { ExtensionContext, window, commands } from 'vscode';
 
 /**

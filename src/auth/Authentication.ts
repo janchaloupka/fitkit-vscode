@@ -1,3 +1,4 @@
+import { Connection } from './../remote/Connection';
 import { TokenRequest } from './TokenRequest';
 import { ExtensionContext } from 'vscode';
 
@@ -42,5 +43,8 @@ export class Authentication{
 	public static Invalidate(){
 		this.CachedToken = undefined;
 		this.Context.globalState.update("jwtAuthToken", undefined);
+
+		// Zavřít spojení, pokud existuje
+		Connection.DisconnectFromServer();
 	}
 }

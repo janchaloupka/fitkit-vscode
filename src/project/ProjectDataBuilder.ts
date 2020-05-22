@@ -1,5 +1,5 @@
 import { ProjectConfig, FpgaOrderedSource } from '../models/ProjectConfigXml';
-import { Repository } from './../repository/repository';
+import { Repository } from '../repository/Repository';
 import { Utils } from '../common/Utils';
 import { File, ProjectData } from '../models/ProjectData';
 import { ConfigParser } from '../common/ConfigParser';

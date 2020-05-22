@@ -31,11 +31,16 @@ export class TokenRequest{
 		try{
 			this.Id = await request(`${ExtensionConfig.AuthRequestUrl}?new`);
 		}catch(e){
-			throw new Error("Cannot request new token. Failed to connect to auth server.");
+			const errorMsg = `Cannot request new auth token. ${e.toString()}`;
+			window.showErrorMessage(errorMsg);
+			throw new Error(errorMsg);
 		}
 
-		if(this.Id.length === 0)
-			throw new Error("Invalid response from auth server. Request id is empty");
+		if(this.Id.length === 0){
+			const errorMsg = `Cannot request new auth token. Invalid response from auth server. Request id is empty`;
+			window.showErrorMessage(errorMsg);
+			throw new Error(errorMsg);
+		}
 
 		// Otevřít uživateli stránku pro potvrzení požadavku
 		open(`${ExtensionConfig.AuthGenerateUrl}?request=${this.Id}&appname=FITkit+Extension+for+VSCode`);

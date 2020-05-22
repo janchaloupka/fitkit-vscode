@@ -1,8 +1,8 @@
-import { DefaultMCUFile, DefaultTopVHDLFile, DefaultTestBench, DefaultIsimScript } from './defaultProjectFiles';
+import { DefaultMCUFile, DefaultTopVHDLFile, DefaultTestBench, DefaultIsimScript } from './DefaultProjectFiles';
 import { ConfigParser } from '../common/ConfigParser';
 import { Utils } from '../common/Utils';
 import { env, Uri, commands, window } from "vscode";
-import { Repository } from "./repository";
+import { Repository } from "./Repository";
 import { TreeChild, RepositoryView } from "./repositoryView";
 import * as path from "path";
 import latinize = require('latinize');
@@ -12,6 +12,7 @@ export class RepositoryCommands{
 		commands.registerCommand("fitkit.repository.openRootInOS", () => this.OpenRootInOS());
 		commands.registerCommand("fitkit.repository.openFolderInOS", (i) => this.OpenFolderInOS(i));
 		commands.registerCommand("fitkit.repository.openProject", (i, j) => this.OpenProject(i, j));
+		commands.registerCommand("fitkit.repository.openProjectSameWindow", i => this.OpenProjectSameWindow(i));
 		commands.registerCommand("fitkit.repository.refreshView", () => this.RefreshView());
 		commands.registerCommand("fitkit.repository.deleteFolder", (i) => this.DeleteFolder(i));
 		commands.registerCommand("fitkit.repository.download", () => this.Download());
@@ -32,6 +33,12 @@ export class RepositoryCommands{
 	private OpenProject(item: TreeChild, requireDoubleClick: boolean = false){
 		if(item.IsCategory) return;
 		if(requireDoubleClick && !Utils.DoubleClickCheck(item)) return;
+
+		commands.executeCommand("vscode.openFolder", Uri.file(item.Path), true);
+	}
+
+	private OpenProjectSameWindow(item: TreeChild){
+		if(item.IsCategory) return;
 
 		commands.executeCommand("vscode.openFolder", Uri.file(item.Path));
 	}

@@ -65,7 +65,7 @@ export class Simulation{
 		try{
 			this.Connection = await Connection.GetActiveConnection();
 		}catch(e){
-			this.ErrorLine(`[LOCAL] Failed to connect to the build server. ${e.toString()}`);
+			this.ErrorLine(`[LOCAL] ${e.toString()}`);
 			this.Close();
 			return;
 		}

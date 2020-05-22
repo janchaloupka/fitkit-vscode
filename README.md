@@ -1,16 +1,13 @@
 # FITkit rozšíření pro Visual Studio Code
-
 Rozšíření pro správu FITkit projektů a jejich vzálený překlad a simulaci. Rozšíření také obsahuje utilitu pro programování a komunikaci s připojenými přípravky FITkit.
 
-
 ## Požadavky
-
 Pro plné využití tohoto rozsíření je nutné být připojen k internetu a mít možnost autentizace (např. být studentem VUT FIT)
 
 ## Návod k použití
 Rozšíření přidá novou sekci do postranního panelu. Pod touto sekcí se nachází lokální správa projektů včetně vytváření a mazání.
 
-Pokud rozšíření detekuje, že je otevřen FITkit projekt, také je přidán ovládací panel umožňující překlad, simulaci, atd. Tento ovládací panel se nachází v sekci "Explorer" (je to sekce, kde jsou zobrazeny soubory otevřeného projektu). Více info viz [Otevřený projekt](#Otevřený-projekt).
+Pokud rozšíření detekuje, že je otevřen FITkit projekt, také je přidán ovládací panel umožňující překlad, simulaci atd. Tento ovládací panel se nachází v sekci "Explorer" (je to sekce, kde jsou zobrazeny soubory otevřeného projektu). Více info viz [Otevřený projekt](#Otevřený-projekt).
 
 ### Správa projektů
 Po prvním spuštění (nebo pokud nebude nalezen lokální repozitář) budete vyzváni dialogovým oknem ke stažení kopie repozitíře ze serveru. Tuto akci stačí potvrdit a editor se sám repozitář pokusí stáhnout.
