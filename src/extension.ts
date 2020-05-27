@@ -1,10 +1,6 @@
 import { Connection } from './remote/Connection';
 import { FitkitSerial } from './serial/FitkitSerial';
 import { Authentication } from './auth/Authentication';
-/**
- * Vstupní bod rozšíření
- */
-
 import { Project } from './project/Project';
 import { Repository } from './repository/Repository';
 import { ExtensionContext, window, commands } from 'vscode';
