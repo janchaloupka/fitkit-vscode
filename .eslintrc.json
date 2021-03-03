@@ -2,7 +2,7 @@
     "root": true,
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
-        "ecmaVersion": 6,
+        "ecmaVersion": 2017,
         "sourceType": "module"
     },
     "plugins": [
@@ -15,7 +15,7 @@
         "eqeqeq": "warn",
         "no-throw-literal": "warn",
         "semi": "warn",
-        "indent": ["warn", "tab", {
+        "indent": ["warn", 4, {
 			"SwitchCase": 1
 		}]
     }

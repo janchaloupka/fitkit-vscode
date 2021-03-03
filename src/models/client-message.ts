@@ -1,12 +1,12 @@
 import { ProjectData } from './ProjectData';
 
 interface MessageProject{
-	type: "build-begin" | "isim-begin";
-	data: ProjectData;
+    type: "build-begin" | "isim-begin";
+    data: ProjectData;
 }
 
 interface MessageVoid{
-	type: "build-end" | "isim-end";
+    type: "build-end" | "isim-end";
 }
 
 /**

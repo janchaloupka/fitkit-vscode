@@ -1,10 +1,10 @@
 interface Category{
-	name: string;
+    name: string;
 }
 
 /**
  * Struktura XML souboru pro popis kategorie
  */
 export interface CategoryConfigXml{
-	category: Category;
+    category: Category;
 }
