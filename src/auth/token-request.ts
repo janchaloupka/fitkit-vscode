@@ -3,20 +3,20 @@ import { ProgressLocation } from 'vscode';
 import { window } from 'vscode';
 import * as request from "request-promise-native";
 import * as open from "open";
-import { ExtensionConfig } from "../ExtensionConfig";
+import { ExtensionConfig } from "../extension-config";
 
 /**
  * Třída pro vytvoření požadavku a získání nového autorizačního tokenu
  */
 export class TokenRequest{
     /** Identifikační číslo požadavku */
-    private Id = "";
+    private id = "";
 
     /**
      * Získat nový autorizační token.
-     * Pokud se nepodaří token získat, metoda zkončí výjimkou
+     * Pokud se nepodaří token získat, metoda skončí výjimkou
      */
-    public async RequestToken(): Promise<string>{
+    public async requestToken(): Promise<string>{
         // Pro detailní specifikaci získání tokenu viz dokumentace autentizačního serveru
 
         const dialogContinue = "Continue (Open web browser)";
@@ -29,27 +29,27 @@ export class TokenRequest{
             throw new Error("Cannot get auth token. Action cancelled by user");
 
         try{
-            this.Id = await request(`${ExtensionConfig.AuthRequestUrl}?new`);
+            this.id = await request(`${ExtensionConfig.authRequestUrl}?new`);
         }catch(e){
             const errorMsg = `Cannot request new auth token. ${e.toString()}`;
             window.showErrorMessage(errorMsg);
             throw new Error(errorMsg);
         }
 
-        if(this.Id.length === 0){
+        if(this.id.length === 0){
             const errorMsg = `Cannot request new auth token. Invalid response from auth server. Request id is empty`;
             window.showErrorMessage(errorMsg);
             throw new Error(errorMsg);
         }
 
         // Otevřít uživateli stránku pro potvrzení požadavku
-        open(`${ExtensionConfig.AuthGenerateUrl}?request=${this.Id}&appname=FITkit+Extension+for+VSCode`);
+        open(`${ExtensionConfig.authGenerateUrl}?request=${this.id}&appname=FITkit+Extension+for+VSCode`);
 
         const token = await window.withProgress<string>({
             location: ProgressLocation.Notification,
             title: "FITkit Authentication",
             cancellable: true
-        }, (progress, cancelToken) => this.GetToken(progress, cancelToken));
+        }, (progress, cancelToken) => this.getToken(progress, cancelToken));
 
         window.showInformationMessage("You were successfully authenticated");
         return token;
@@ -57,14 +57,14 @@ export class TokenRequest{
 
     /**
      * Pravidelně se dotazovat, zda již byl požadavek na autorizační token
-     * vyžízen. Musí být zavoláno jako task metody `vscode.window.withProgess`
+     * vyřízen. Musí být zavoláno jako task metody `vscode.window.withProgess`
      *
-     * V přípdaě, že se nepodaří získat token metoda skončí výjimkou.
+     * V případě, že se nepodaří získat token metoda skončí výjimkou.
      *
      * @param progress Informuje o stavu vyřízení požadavku
      * @param cancel Token pro indikace, že byla akce zrušená uživatelem
      */
-    private GetToken(progress: Progress<{message: string}>, cancel: CancellationToken): Promise<string>{
+    private getToken(progress: Progress<{message: string}>, cancel: CancellationToken): Promise<string>{
         progress.report({message: "Waiting for user verification..."});
 
         return new Promise<string>((resolve, reject) =>{
@@ -77,7 +77,7 @@ export class TokenRequest{
                 }
 
                 try{
-                    const token = await request(`${ExtensionConfig.AuthRequestUrl}?request=${this.Id}`);
+                    const token = await request(`${ExtensionConfig.authRequestUrl}?request=${this.id}`);
                     if(typeof token !== "string" || token.trim().length === 0) return;
 
                     resolve(token.trim());

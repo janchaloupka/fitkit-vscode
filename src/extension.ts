@@ -1,8 +1,8 @@
-import { Connection } from './remote/Connection';
-import { FitkitSerial } from './serial/FitkitSerial';
-import { Authentication } from './auth/Authentication';
-import { Project } from './project/Project';
-import { Repository } from './repository/Repository';
+import { Connection } from './remote/connection';
+import { FitkitSerial } from './serial/fitkit-serial';
+import { Authentication } from './auth/authentication';
+import { Project } from './project/project';
+import { Repository } from './repository/repository';
 import { ExtensionContext, window, commands } from 'vscode';
 
 /**
@@ -11,32 +11,32 @@ import { ExtensionContext, window, commands } from 'vscode';
  * Je zavolán, pokud jsou splněny podmínky aktivace v package.json
  */
 export function activate(context: ExtensionContext) {
-	console.log('FITkit extension activated!');
+    console.log('FITkit extension activated!');
 
-	Authentication.Context = context;
+    Authentication.context = context;
 
-	try{
-		FitkitSerial.UpdateSerialPathByArch(context.extensionPath);
-	}catch(e){
-		window.showWarningMessage("Failed to init module for serial communication. " + e.toString());
-	}
+    try{
+        FitkitSerial.updateSerialPathByArch(context.extensionPath);
+    }catch(e){
+        window.showWarningMessage("Failed to init module for serial communication. " + e.toString());
+    }
 
-	commands.registerCommand("fitkit.disconnect", () => {
-		Connection.DisconnectFromServer();
-	});
+    commands.registerCommand("fitkit.disconnect", () => {
+        Connection.disconnectFromServer();
+    });
 
-	Repository.Init();
-	Project.Init();
+    Repository.init();
+    Project.init();
 
-	commands.registerCommand("fitkit.auth.invalidate", () => {
-		Authentication.Invalidate();
-		window.showInformationMessage("Your auth token was successfully invalidated");
-	});
+    commands.registerCommand("fitkit.auth.invalidate", () => {
+        Authentication.invalidate();
+        window.showInformationMessage("Your auth token was successfully invalidated");
+    });
 }
 
 /**
- * Dekativace rozšíření, pokud VSCode usoudí že již není potřeba
+ * Deaktivace rozšíření, pokud VSCode usoudí že již není potřeba
  */
 export function deactivate() {
-	console.log('FITkit extension deactivated.');
+    console.log('FITkit extension deactivated.');
 }

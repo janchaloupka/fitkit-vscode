@@ -1,180 +1,180 @@
 import { Disposable } from 'vscode';
-import { Connection } from '../remote/Connection';
-import { ProjectData } from '../models/ProjectData';
-import { VirtualTerminal } from '../common/VirtualTerminal';
+import { Connection } from '../remote/connection';
+import { ProjectData } from '../models/project-data';
+import { VirtualTerminal } from '../common/virtual-terminal';
 import { window, Terminal, EventEmitter } from 'vscode';
-import { SimulationView } from './SimulationView';
+import { SimulationView } from './simulation-view';
 import * as colors from "colors/safe";
-import { ExtensionConfig } from '../ExtensionConfig';
+import { ExtensionConfig } from '../extension-config';
 import { join } from 'path';
-import { Utils } from '../common/Utils';
+import { Utils } from '../common/utils';
 
 /**
  * Logika pro ovládání a přijímání zpráv o vzdálené simulaci
  */
 export class Simulation{
-	private onDidCloseEmitter = new EventEmitter<void>();
+    private onDidCloseEmitter = new EventEmitter<void>();
 
-	private View?: SimulationView;
-	private Terminal: Terminal;
-	private VirtualTerminal: VirtualTerminal;
-	private ProjectData: ProjectData;
-	private Connection?: Connection;
-	private Path :string;
+    private view?: SimulationView;
+    private terminal: Terminal;
+    private virtualTerminal: VirtualTerminal;
+    private projectData: ProjectData;
+    private connection?: Connection;
+    private path :string;
 
-	/** Seznam všech prvků, které je nutné po ukončení uklidit. Většinou event listenery */
-	private Disposables: Disposable[] = [];
+    /** Seznam všech prvků, které je nutné po ukončení uklidit. Většinou event listenery */
+    private disposables: Disposable[] = [];
 
-	/** Indikátor, zda se hláška o zařazení do fronty zobrazuje poprvé */
-	private QueueFirstTime = true;
+    /** Indikátor, zda se hláška o zařazení do fronty zobrazuje poprvé */
+    private queueFirstTime = true;
 
-	/** Došlo k ukončení simulace */
-	public readonly onDidClose = this.onDidCloseEmitter.event;
+    /** Došlo k ukončení simulace */
+    public readonly onDidClose = this.onDidCloseEmitter.event;
 
-	public constructor(project: ProjectData, projectPath: string){
-		this.ProjectData = project;
-		this.Path = projectPath;
+    public constructor(project: ProjectData, projectPath: string){
+        this.projectData = project;
+        this.path = projectPath;
 
-		this.VirtualTerminal = new VirtualTerminal();
-		this.Disposables.push(this.VirtualTerminal.onDidClose(() => this.Close()));
+        this.virtualTerminal = new VirtualTerminal();
+        this.disposables.push(this.virtualTerminal.onDidClose(() => this.close()));
 
-		this.Terminal = window.createTerminal({
-			name: "ISIM Output",
-			pty: this.VirtualTerminal
-		});
-		this.Terminal.show();
-	}
+        this.terminal = window.createTerminal({
+            name: "ISIM Output",
+            pty: this.virtualTerminal
+        });
+        this.terminal.show();
+    }
 
-	/**
-	 * Spustit simulaci
-	 *
-	 * Simulace se nespustí ihned, ale nevázě se spojení se serverem a pošle se
-	 * požadavek na spuštení simulace
-	 */
-	public async Init(){
-		this.WriteLine("[LOCAL] Preparing simulation...");
+    /**
+     * Spustit simulaci
+     *
+     * Simulace se nespustí ihned, ale naváže se spojení se serverem a pošle se
+     * požadavek na spuštění simulace
+     */
+    public async init(){
+        this.writeLine("[LOCAL] Preparing simulation...");
 
-		if(!this.ProjectData.Fpga.IsimFile){
-			this.ErrorLine(`[LOCAL] Cannot find "fpga/sim/isim.tcl" ISIM configuration file. Simulation cannot start`);
-			this.Close();
-			return;
-		}
+        if(!this.projectData.fpga.isimFile){
+            this.errorLine(`[LOCAL] Cannot find "fpga/sim/isim.tcl" ISIM configuration file. Simulation cannot start`);
+            this.close();
+            return;
+        }
 
-		this.WriteLine("[LOCAL] Establishing connection to build server...");
+        this.writeLine("[LOCAL] Establishing connection to build server...");
 
-		try{
-			this.Connection = await Connection.GetActiveConnection();
-		}catch(e){
-			this.ErrorLine(`[LOCAL] ${e.toString()}`);
-			this.Close();
-			return;
-		}
+        try{
+            this.connection = await Connection.getActiveConnection();
+        }catch(e){
+            this.errorLine(`[LOCAL] ${e.toString()}`);
+            this.close();
+            return;
+        }
 
-		if(ExtensionConfig.LogDebugInfo){
-			const logPath = join(this.Path, "server_communication.log");
-			try{
-				await Utils.DeletePath(logPath);
-			}catch(e){}
-			this.Connection.LogPath = logPath;
-		}else
-			this.Connection.LogPath = undefined;
+        if(ExtensionConfig.logDebugInfo){
+            const logPath = join(this.path, "server_communication.log");
+            try{
+                await Utils.deletePath(logPath);
+            }catch(e){}
+            this.connection.logPath = logPath;
+        }else
+            this.connection.logPath = undefined;
 
-		this.Disposables.push(
-			this.Connection.onIsimBegin(connString => this.Begin(connString)),
-			this.Connection.onIsimStderr(line => this.ErrorLine(line)),
-			this.Connection.onIsimStdout(line => this.WriteLine(line)),
-			this.Connection.onIsimEnd(() => this.Close()),
-			this.Connection.onIsimQueue(info => this.SendQueueInfo(info.pos, info.size)),
-			this.Connection.onProjectMapping(map => this.VirtualTerminal.LoadFilesMapping(map)),
-			this.Connection.onServerError(err => this.ErrorLine(`Server error: ${err}`)),
-			this.Connection.onDidClose(() => this.Close())
-		);
+        this.disposables.push(
+            this.connection.onIsimBegin(connString => this.begin(connString)),
+            this.connection.onIsimStderr(line => this.errorLine(line)),
+            this.connection.onIsimStdout(line => this.writeLine(line)),
+            this.connection.onIsimEnd(() => this.close()),
+            this.connection.onIsimQueue(info => this.sendQueueInfo(info.pos, info.size)),
+            this.connection.onProjectMapping(map => this.virtualTerminal.loadFilesMapping(map)),
+            this.connection.onServerError(err => this.errorLine(`Server error: ${err}`)),
+            this.connection.onDidClose(() => this.close())
+        );
 
-		if(this.Connection.Connected){
-			this.SendRequest();
-			return;
-		}
+        if(this.connection.connected){
+            this.sendRequest();
+            return;
+        }
 
-		this.Disposables.push(
-			this.Connection.onDidConnect(() => this.SendRequest())
-		);
-	}
+        this.disposables.push(
+            this.connection.onDidConnect(() => this.sendRequest())
+        );
+    }
 
-	/**
-	 * Poslat zprávu o zahájení simulace
-	 */
-	private SendRequest(){
-		this.WriteLine("[LOCAL] Connection established. Sending simulation request...");
-		this.Connection?.Send({
-			type: "isim-begin",
-			data: this.ProjectData
-		});
-	}
+    /**
+     * Poslat zprávu o zahájení simulace
+     */
+    private sendRequest(){
+        this.writeLine("[LOCAL] Connection established. Sending simulation request...");
+        this.connection?.send({
+            type: "isim-begin",
+            data: this.projectData
+        });
+    }
 
-	/**
-	 * Simulace začala
-	 *
-	 * @param connectionUrl adresa, kde je dostupný VNC stream ISIM okna
-	 */
-	private Begin(connectionUrl: string){
-		this.WriteLine("[LOCAL] Simulation started on remote server");
-		this.View = new SimulationView(connectionUrl);
-		this.Disposables.push(this.View.onDidClose(() => {
-			this.View = undefined;
-			this.Close();
-		}));
-	}
+    /**
+     * Simulace začala
+     *
+     * @param connectionUrl adresa, kde je dostupný VNC stream ISIM okna
+     */
+    private begin(connectionUrl: string){
+        this.writeLine("[LOCAL] Simulation started on remote server");
+        this.view = new SimulationView(connectionUrl);
+        this.disposables.push(this.view.onDidClose(() => {
+            this.view = undefined;
+            this.close();
+        }));
+    }
 
-	/**
-	 * Vypsat informační řádek do terminálu (ekvivalent stdout)
-	 * @param line Řádek textu pro vypsání
-	 */
-	private WriteLine(line: string){
-		this.VirtualTerminal.WriteLine(line);
-	}
+    /**
+     * Vypsat informační řádek do terminálu (ekvivalent stdout)
+     * @param line Řádek textu pro vypsání
+     */
+    private writeLine(line: string){
+        this.virtualTerminal.writeLine(line);
+    }
 
-	/**
-	 * Vypsat chybový řádek do terminálu (ekvivalent stderr)
-	 * @param line Řádek chyby pro vypsání
-	 */
-	private ErrorLine(line: string){
-		this.VirtualTerminal.ErrorLine(line);
-	}
+    /**
+     * Vypsat chybový řádek do terminálu (ekvivalent stderr)
+     * @param line Řádek chyby pro vypsání
+     */
+    private errorLine(line: string){
+        this.virtualTerminal.errorLine(line);
+    }
 
-	/**
-	 * Zobrazí na terminálu aktuální informaci o stavu fronty
-	 * @param pos Pozice tohoto požadavku ve frontě
-	 * @param size Celkové délka fronty
-	 */
-	private SendQueueInfo(pos: number, size: number){
-		if(this.QueueFirstTime){
-			this.WriteLine("");
-			this.WriteLine(colors.yellow("[LOCAL] Unfortunately, the server is at maximum capacity. Your task has been placed in queue."));
-			this.WriteLine(colors.yellow("[LOCAL] You can cancel this task by killing this terminal (note that by doing this you will loose your position in the queue)"));
-			this.WriteLine("");
-			this.QueueFirstTime = false;
-		}
-		this.WriteLine(`[LOCAL] Your current position in the queue: ${pos} out of ${size} waiting task(s)`);
-		if(pos === 1)
-			this.WriteLine("[LOCAL] You are first in the queue. Expect your task to start soon...");
-	}
+    /**
+     * Zobrazí na terminálu aktuální informaci o stavu fronty
+     * @param pos Pozice tohoto požadavku ve frontě
+     * @param size Celkové délka fronty
+     */
+    private sendQueueInfo(pos: number, size: number){
+        if(this.queueFirstTime){
+            this.writeLine("");
+            this.writeLine(colors.yellow("[LOCAL] Unfortunately, the server is at maximum capacity. Your task has been placed in queue."));
+            this.writeLine(colors.yellow("[LOCAL] You can cancel this task by killing this terminal (note that by doing this you will loose your position in the queue)"));
+            this.writeLine("");
+            this.queueFirstTime = false;
+        }
+        this.writeLine(`[LOCAL] Your current position in the queue: ${pos} out of ${size} waiting task(s)`);
+        if(pos === 1)
+            this.writeLine("[LOCAL] You are first in the queue. Expect your task to start soon...");
+    }
 
-	/**
-	 * Uknončit simulaci
-	 */
-	public Close(){
-		// Uklidit všechny zachytávače eventů
-		this.Disposables.forEach(d => d.dispose());
+    /**
+     * Ukončit simulaci
+     */
+    public close(){
+        // Uklidit všechny zachytávače eventů
+        this.disposables.forEach(d => d.dispose());
 
-		// Říci serveru (pokud ještě existuje), že simulace byla ukončena
-		if(this.Connection) this.Connection.Send({type: "isim-end"});
+        // Říci serveru (pokud ještě existuje), že simulace byla ukončena
+        if(this.connection) this.connection.send({type: "isim-end"});
 
-		this.View?.Dispose();
+        this.view?.dispose();
 
-		this.VirtualTerminal.AnyKeyToClose();
+        this.virtualTerminal.anyKeyToClose();
 
-		this.onDidCloseEmitter.fire();
+        this.onDidCloseEmitter.fire();
 
-		if(this.Connection) this.Connection.LogPath = undefined;
-	}
+        if(this.connection) this.connection.LogPath = undefined;
+    }
 }

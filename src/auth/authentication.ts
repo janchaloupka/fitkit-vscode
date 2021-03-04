@@ -1,5 +1,5 @@
-import { Connection } from './../remote/Connection';
-import { TokenRequest } from './TokenRequest';
+import { Connection } from './../remote/connection';
+import { TokenRequest } from './token-request';
 import { ExtensionContext } from 'vscode';
 
 /**
@@ -8,10 +8,10 @@ import { ExtensionContext } from 'vscode';
  */
 export class Authentication{
     /** Aktuální JWT token, načtený z disku nebo získaný ze serveru */
-    private static CachedToken?: string;
+    private static cachedToken?: string;
 
     /** Kontext ve kterém rozšíření běží */
-    public static Context: ExtensionContext;
+    public static context: ExtensionContext;
 
     /**
      * Vrátí JWT token pro autentizaci na překladovém serveru.
@@ -21,30 +21,30 @@ export class Authentication{
      *
      * @param invalidate Vyžádat nový JWT token
      */
-    public static async GetToken(invalidate = false): Promise<string>{
-        if(invalidate) this.Invalidate();
+    public static async getToken(invalidate = false): Promise<string>{
+        if(invalidate) this.invalidate();
 
-        if(this.CachedToken) return this.CachedToken;
+        if(this.cachedToken) return this.cachedToken;
 
-        let token = this.Context.globalState.get<string>("jwtAuthToken");
+        let token = this.context.globalState.get<string>("jwtAuthToken");
         if(typeof token !== "string" || token.length === 0){
             const request = new TokenRequest();
-            token = await request.RequestToken();
-            this.Context.globalState.update("jwtAuthToken", token);
+            token = await request.requestToken();
+            this.context.globalState.update("jwtAuthToken", token);
         }
 
-        this.CachedToken = token;
+        this.cachedToken = token;
         return token;
     }
 
     /**
      * Znevalidnit aktuální token uložený v mezipaměti a na disku
      */
-    public static Invalidate(){
-        this.CachedToken = undefined;
-        this.Context.globalState.update("jwtAuthToken", undefined);
+    public static invalidate(){
+        this.cachedToken = undefined;
+        this.context.globalState.update("jwtAuthToken", undefined);
 
         // Zavřít spojení, pokud existuje
-        Connection.DisconnectFromServer();
+        Connection.disconnectFromServer();
     }
 }

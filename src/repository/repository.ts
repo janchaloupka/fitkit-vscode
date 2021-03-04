@@ -1,138 +1,139 @@
-import { RepositoryCommands } from './repositoryCommands';
-import { RepositoryView } from './repositoryView';
-import { Utils } from '../common/Utils';
-import { ExtensionConfig } from '../ExtensionConfig';
+import { RepositoryCommands } from './repository-commands';
+import { RepositoryView } from './repository-view';
+import { Utils } from '../common/utils';
+import { ExtensionConfig } from '../extension-config';
 import { window, ProgressLocation, Progress } from "vscode";
 import * as unzipper from "unzipper";
 import * as path from "path";
 import * as request from "request-promise-native";
 
 /**
- * Absolutní cesty k důležitým adresářům repozitáře
+ * Absolutní cesty k důležitým adresářům repositáře
  */
 interface RepositoryFolders{
-    /** Kořenový adresář repozitáře */
-    Root: string;
+    /** Kořenový adresář repositáře */
+    root: string;
 
     /** Adresář projektů */
-    Apps: string;
+    apps: string;
 
     /** Adresář základních souborů nutných k překladu */
-    Base: string;
+    base: string;
 
     /** Adresář souborů knihovny pro FPGA */
-    LibFpga: string;
+    libFpga: string;
 
     /** Adresář souborů knihovny pro MCU */
-    LibMcu: string;
+    libMcu: string;
 }
 
 /**
- * Rozhraní pro práci s repozitářem
+ * Rozhraní pro práci s repositářem
  */
 export class Repository{
-    private static _Folder: RepositoryFolders;
-    private static _LastExists: boolean = false;
+    private static _folder: RepositoryFolders;
+    private static _lastExists: boolean = false;
 
-    private static get LastExists(): boolean {
-        return this._LastExists;
+    private static get lastExists(): boolean {
+        return this._lastExists;
     }
 
-    private static set LastExists(val: boolean) {
-        this._LastExists = val;
-        this.OnExistsChangeCallbacks.forEach(callback => {
+    private static set lastExists(val: boolean) {
+        this._lastExists = val;
+        this.onExistsChangeCallbacks.forEach(callback => {
             callback(val);
         });
     }
 
-    private static OnExistsChangeCallbacks: ((exists: boolean) => void)[] = [];
+    private static onExistsChangeCallbacks: ((exists: boolean) => void)[] = [];
 
-    public static OnExistChange(callback: (exists: boolean) => void){
-        this.OnExistsChangeCallbacks.push(callback);
+    public static onExistChange(callback: (exists: boolean) => void){
+        this.onExistsChangeCallbacks.push(callback);
     }
 
     /**
-      * Absolutní cesty k důležitým adresářům repozitáře
+      * Absolutní cesty k důležitým adresářům repositáře
       */
-    public static get Folder() : RepositoryFolders {
-        if(!this._Folder){
-            this._Folder = {
-                Root: ExtensionConfig.RepositoryPath,
-                Apps: path.join(ExtensionConfig.RepositoryPath, "apps"),
-                Base: path.join(ExtensionConfig.RepositoryPath, "base"),
-                LibFpga: path.join(ExtensionConfig.RepositoryPath, "fpga"),
-                LibMcu: path.join(ExtensionConfig.RepositoryPath, "mcu"),
+    public static get folder() : RepositoryFolders {
+        if(!this._folder){
+            this._folder = {
+                root: ExtensionConfig.repositoryPath,
+                apps: path.join(ExtensionConfig.repositoryPath, "apps"),
+                base: path.join(ExtensionConfig.repositoryPath, "base"),
+                libFpga: path.join(ExtensionConfig.repositoryPath, "fpga"),
+                libMcu: path.join(ExtensionConfig.repositoryPath, "mcu"),
             };
         }
 
-        return this._Folder;
+        return this._folder;
     }
 
-    public static async Init(){
+    public static async init(){
         new RepositoryView();
         new RepositoryCommands();
 
-        if(await this.Exists()) return;
+        if(await this.exists()) return;
 
         let res = await window.showWarningMessage(
             `FITkit repository was not found
-            (configured repository path: ${this.Folder.Root})`,
+            (configured repository path: ${this.folder.root})`,
             "Download repository"
         );
 
-        if(typeof res === "string") this.Download();
+        if(typeof res === "string") this.download();
     }
 
     /**
-     * Proces pro stažení a extrahování složky repozitáře
+     * Proces pro stažení a extrahování složky repositáře
      *
      * @param progress Třída pro hlášení aktuálního stavu procesu
      */
-    private static async DownloadProcess(progress: Progress<{message: string}>){
+    private static async downloadProcess(progress: Progress<{message: string}>){
         progress.report({message: "Downloading archive..."});
 
-        let zipFile: Buffer = await request(ExtensionConfig.RepositoryUrl, {
+        let zipFile: Buffer = await request(ExtensionConfig.repositoryUrl, {
             encoding: null
         });
 
         // TODO Do budoucna - Přepsat extrakci pro podporu FS API ve VSCode
+        // Není zas tak důležitý
         progress.report({message: "Extracting archive..."});
         let zip = await unzipper.Open.buffer(zipFile);
 
-        await zip.extract({path: this.Folder.Root});
+        await zip.extract({path: this.folder.root});
     }
 
     /**
-     * Stáhne a extrahuje složku repozitáře
+     * Stáhne a extrahuje složku repositáře
      */
-    public static async Download(): Promise<boolean>{
+    public static async download(): Promise<boolean>{
         try{
             await window.withProgress({
                 location: ProgressLocation.Notification,
                 title: "FITkit repository",
                 cancellable: false
-            }, (progress) => this.DownloadProcess(progress));
+            }, (progress) => this.downloadProcess(progress));
 
-            window.showInformationMessage(`FITkit repository succesfully downloaded.`);
+            window.showInformationMessage(`FITkit repository successfully downloaded.`);
         }catch(e){
-            window.showErrorMessage(`Failed to download repository from ${ExtensionConfig.RepositoryUrl}. ${e}`);
+            window.showErrorMessage(`Failed to download repository from ${ExtensionConfig.repositoryUrl}. ${e}`);
             return false;
         }
 
-        return this.Exists();
+        return this.exists();
     }
 
     /**
-     * Kontrola, zda existuje lokální adresář repozitáře
+     * Kontrola, zda existuje lokální adresář repositáře
      */
-    public static async Exists(): Promise<boolean>{
-        let exists = await Utils.DirectoryExists(this.Folder.Root)
-            && await Utils.DirectoryExists(this.Folder.Apps)
-            && await Utils.DirectoryExists(this.Folder.Base)
-            && await Utils.DirectoryExists(this.Folder.LibFpga)
-            && await Utils.DirectoryExists(this.Folder.LibMcu);
+    public static async exists(): Promise<boolean>{
+        let exists = await Utils.directoryExists(this.folder.root)
+            && await Utils.directoryExists(this.folder.apps)
+            && await Utils.directoryExists(this.folder.base)
+            && await Utils.directoryExists(this.folder.libFpga)
+            && await Utils.directoryExists(this.folder.libMcu);
 
-        if(this.LastExists !== exists) this.LastExists = exists;
+        if(this.lastExists !== exists) this.lastExists = exists;
 
         return exists;
     }

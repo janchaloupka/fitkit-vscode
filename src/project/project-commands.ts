@@ -1,69 +1,69 @@
-import { Utils } from '../common/Utils';
-import { FitkitSerial } from '../serial/FitkitSerial';
-import { Build } from '../build/Build';
-import { Simulation } from '../simulation/Simulation';
-import { ProjectData } from '../models/ProjectData';
-import { Project } from './Project';
-import { ProjectDataBuilder } from './ProjectDataBuilder';
+import { Utils } from '../common/utils';
+import { FitkitSerial } from '../serial/fitkit-serial';
+import { Build } from '../build/build';
+import { Simulation } from '../simulation/simulation';
+import { ProjectData } from '../models/project-data';
+import { Project } from './project';
+import { ProjectDataBuilder } from './project-data-builder';
 import { commands, window, workspace } from "vscode";
-import { ExtensionConfig } from '../ExtensionConfig';
+import { ExtensionConfig } from '../extension-config';
 
 /**
  * Implementace příkazů pro práci s projektem
  */
 export class ProjectCommands{
-    public static ExtensionPath ?: string;
+    public static extensionPath ?: string;
 
     /**
      * Instance aktivní simulace
      */
-    private Simulation?: Simulation;
+    private simulation?: Simulation;
 
     /**
      * Instance aktivního sestavení
      */
-    private Build?: Build;
+    private build?: Build;
 
     constructor(){
-        commands.registerCommand("fitkit.project.remoteBuild", () => this.RemoteBuild());
-        commands.registerCommand("fitkit.project.remoteIsim", () => this.RemoteIsim());
-        commands.registerCommand("fitkit.project.flash", () => this.Flash());
-        commands.registerCommand("fitkit.project.openTerminal", () => this.OpenTerminal());
-        commands.registerCommand("fitkit.project.flashAndRun", () => this.Flash(true));
+        commands.registerCommand("fitkit.project.remoteBuild", () => this.remoteBuild());
+        commands.registerCommand("fitkit.project.remoteIsim", () => this.remoteIsim());
+        commands.registerCommand("fitkit.project.flash", () => this.flash());
+        commands.registerCommand("fitkit.project.openTerminal", () => this.openTerminal());
+        commands.registerCommand("fitkit.project.flashAndRun", () => this.flash(true));
     }
 
     /**
      * Vzdálený překlad projektu
      */
-    public async RemoteBuild(){
+    public async remoteBuild(){
         // Ochrana proti dvojkliku
-        if(Utils.DoubleClickCheck("remoteBuild")) return;
+        if(Utils.doubleClickCheck("remoteBuild")) return;
 
-        let projects = await Project.OpenedProjects();
+        let projects = await Project.openedProjects();
         if(projects.length < 0) return;
 
         // Uložit rozpracované soubory
-        if(ExtensionConfig.SaveOnBuild) await workspace.saveAll(false);
+        if(ExtensionConfig.saveOnBuild) await workspace.saveAll(false);
 
         let data: ProjectData;
         let build = new ProjectDataBuilder(projects[0]);
         try{
-            data = await build.Create();
+            data = await build.create();
         }catch(e){
             window.showErrorMessage(`Error while parsing project configuration file. ${e.toString()}`);
             console.error(e);
             return;
         }
 
-        console.log(data.Mcu.Headers.map(m => m.Path));
-        console.log(data.Fpga.Files.map(f => f.Path));
+        console.log(data.mcu?.headers.map(m => m.path));
+        console.log(data.fpga?.files.map(f => f.path));
 
-        if(this.Build) this.Build.Close();
+        if(this.build) this.build.close();
 
         try{
-            this.Build = new Build(data, projects[0]);
-            this.Build.onDidClose(() => this.Build = undefined);
-            await this.Build.Init();
+            this.build = new Build(data, projects[0]);
+            this.build.onDidClose(() => this.build = undefined);
+            await this.build.init();
         }catch(e){
             console.error(e);
         }
@@ -72,32 +72,32 @@ export class ProjectCommands{
     /**
      * Vzdálená simulace projektu
      */
-    public async RemoteIsim(){
+    public async remoteIsim(){
         // Ochrana proti dvojkliku
-        if(Utils.DoubleClickCheck("remoteIsim")) return;
+        if(Utils.doubleClickCheck("remoteIsim")) return;
 
-        let projects = await Project.OpenedProjects();
+        let projects = await Project.openedProjects();
         if(projects.length < 0) return;
 
         // Uložit rozpracované soubory
-        if(ExtensionConfig.SaveOnBuild) await workspace.saveAll(false);
+        if(ExtensionConfig.saveOnBuild) await workspace.saveAll(false);
 
         let data: ProjectData;
         let build = new ProjectDataBuilder(projects[0]);
         try{
-            data = await build.Create();
+            data = await build.create();
         }catch(e){
             window.showErrorMessage(`Error while parsing project configuration file. ${e.toString()}`);
             console.error(e);
             return;
         }
 
-        if(this.Simulation) this.Simulation.Close();
+        if(this.simulation) this.simulation.close();
 
         try{
-            this.Simulation = new Simulation(data, projects[0]);
-            this.Simulation.onDidClose(() => this.Simulation = undefined);
-            await this.Simulation.Init();
+            this.simulation = new Simulation(data, projects[0]);
+            this.simulation.onDidClose(() => this.simulation = undefined);
+            await this.simulation.init();
         }catch(e){
             console.error(e);
         }
@@ -106,11 +106,11 @@ export class ProjectCommands{
     /**
      * Programování projektu do přípravku FITkit
      */
-    public async Flash(runAfter = false){
+    public async flash(runAfter = false){
         // Ochrana proti dvojkliku
-        if(Utils.DoubleClickCheck("projectFlash")) return;
+        if(Utils.doubleClickCheck("projectFlash")) return;
 
-        let projects = await Project.OpenedProjects();
+        let projects = await Project.openedProjects();
         if(projects.length < 0){
             window.showErrorMessage("No FITkit project is opened");
             return;
@@ -118,11 +118,11 @@ export class ProjectCommands{
 
         let term = new FitkitSerial();
         try{
-            await term.Flash(projects[0], runAfter);
+            await term.flash(projects[0], runAfter);
         }catch(e){
             console.error(e);
             window.showErrorMessage("FITkit flash error: " + e.toString());
-            term.Close();
+            term.close();
         }
 
     }
@@ -130,11 +130,11 @@ export class ProjectCommands{
     /**
      * Otevření terminálu a aktivace programu v přípravku FITkit
      */
-    public async OpenTerminal(){
+    public async openTerminal(){
         // Ochrana proti dvojkliku
-        if(Utils.DoubleClickCheck("openTerminal")) return;
+        if(Utils.doubleClickCheck("openTerminal")) return;
 
         let term = new FitkitSerial();
-        term.OpenTerminal();
+        term.openTerminal();
     }
 }

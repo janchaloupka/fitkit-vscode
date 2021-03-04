@@ -7,8 +7,8 @@ class ProjectViewDataProvider implements TreeDataProvider<TreeItem>{
     private _onDidChangeTreeData: EventEmitter<any> = new EventEmitter<any>();
     readonly onDidChangeTreeData: Event<any> = this._onDidChangeTreeData.event;
 
-    public Refresh(){
-        this._onDidChangeTreeData.fire();
+    public refresh(){
+        this._onDidChangeTreeData.fire(undefined);
     }
 
     public async getChildren(element: TreeItem | undefined): Promise<TreeItem[]>{
@@ -72,14 +72,14 @@ class ProjectViewDataProvider implements TreeDataProvider<TreeItem>{
  * Panel zobrazující dostupné akce, které je možno nad projektem vykonávat
  */
 export class ProjectView{
-    private TreeView?: TreeView<TreeItem>;
-    private DataProvider?: ProjectViewDataProvider;
+    private treeView?: TreeView<TreeItem>;
+    private dataProvider?: ProjectViewDataProvider;
 
     public constructor(){
-        this.DataProvider = new ProjectViewDataProvider();
+        this.dataProvider = new ProjectViewDataProvider();
 
-        this.TreeView = window.createTreeView("fitkit.projectView", {
-            treeDataProvider: this.DataProvider,
+        this.treeView = window.createTreeView("fitkit.projectView", {
+            treeDataProvider: this.dataProvider,
             canSelectMany: false,
             showCollapseAll: false
         });

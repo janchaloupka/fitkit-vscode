@@ -5,12 +5,12 @@ import * as colors from "colors/safe";
  * Virtuální terminál pro zobrazení informací o překladu/simulaci
  */
 export class VirtualTerminal implements Pseudoterminal{
-    private static Opened: VirtualTerminal[] = [];
+    private static opened: VirtualTerminal[] = [];
 
     /** Slovník pro mapovaní souborů ("docasny_soubor": "original") */
-    private FilesMapping?: {[term: string]: string};
+    private filesMapping?: {[term: string]: string};
 
-    protected WaitingForAnyKey = false;
+    protected waitingForAnyKey = false;
 
     private onDidCloseEmitter = new EventEmitter<void|number>();
     private onDidWriteEmitter = new EventEmitter<string>();
@@ -19,56 +19,56 @@ export class VirtualTerminal implements Pseudoterminal{
     /** Event, která je vyvolán po zavření terminálu */
     public readonly onDidClose = this.onDidCloseEmitter.event;
 
-    /** Event, která je vyvolán po výtupu programu na terminál */
+    /** Event, která je vyvolán po výstupu programu na terminál */
     public readonly onDidWrite = this.onDidWriteEmitter.event;
 
     /** Event, která je vyvolán po uživatelském vstupu */
     public readonly onInput = this.onInputEmitter.event;
 
-    public Ready = false;
-    public Closed = false;
+    public ready = false;
+    public closed = false;
 
     private lineQueue: string[] = [];
 
     public open(){
-        this.Ready = true;
+        this.ready = true;
 
         // Zavřít terminály čekající na ukončení
-        VirtualTerminal.Opened.forEach(t => {
-            if(t.WaitingForAnyKey) t.handleInput(" ");
+        VirtualTerminal.opened.forEach(t => {
+            if(t.waitingForAnyKey) t.handleInput(" ");
         });
 
-        VirtualTerminal.Opened.push(this);
+        VirtualTerminal.opened.push(this);
 
         while(this.lineQueue.length > 0){
-            this.onDidWriteEmitter.fire(this.lineQueue.shift());
+            this.onDidWriteEmitter.fire(this.lineQueue.shift() ?? "");
         }
     }
 
     public close(){
-        this.Ready = false;
-        this.Closed = true;
-        VirtualTerminal.Opened = VirtualTerminal.Opened.filter(t => t !== this);
+        this.ready = false;
+        this.closed = true;
+        VirtualTerminal.opened = VirtualTerminal.opened.filter(t => t !== this);
         this.onDidCloseEmitter.fire();
     }
 
     public handleInput(data: string){
-        if(this.Closed) return;
+        if(this.closed) return;
 
-        if(!this.WaitingForAnyKey){
+        if(!this.waitingForAnyKey){
             this.onInputEmitter.fire(data);
             return;
         }
 
-        this.WaitingForAnyKey = false;
+        this.waitingForAnyKey = false;
         this.close();
     }
 
-    public AnyKeyToClose(){
-        if(this.WaitingForAnyKey) return;
+    public anyKeyToClose(){
+        if(this.waitingForAnyKey) return;
 
-        this.WaitingForAnyKey = true;
-        this.WriteLine(colors.gray("\r\n\r\nTerminal is inactive. Press any key to close..."));
+        this.waitingForAnyKey = true;
+        this.writeLine(colors.gray("\r\n\r\nTerminal is inactive. Press any key to close..."));
     }
 
     /**
@@ -76,13 +76,13 @@ export class VirtualTerminal implements Pseudoterminal{
      *
      * @param line Řádek textu na výstup
      */
-    public WriteLine(line: string){
-        if(this.Closed) return;
+    public writeLine(line: string){
+        if(this.closed) return;
 
-        if(this.FilesMapping){
-            for (const temp in this.FilesMapping) {
-                if (!this.FilesMapping.hasOwnProperty(temp)) continue;
-                const orig = this.FilesMapping[temp];
+        if(this.filesMapping){
+            for (const temp in this.filesMapping) {
+                if (!this.filesMapping.hasOwnProperty(temp)) continue;
+                const orig = this.filesMapping[temp];
 
                 line = line.replace(temp, orig);
             }
@@ -90,13 +90,13 @@ export class VirtualTerminal implements Pseudoterminal{
 
         line = line.replace(/\n/g, "\r\n");
 
-        if(!this.Ready) this.lineQueue.push(line + "\r\n");
+        if(!this.ready) this.lineQueue.push(line + "\r\n");
         else this.onDidWriteEmitter.fire(line + "\r\n");
     };
 
     // Zápis části znaků na výstup
-    public Write(chunk: any){
-        if(this.Closed) return;
+    public write(chunk: any){
+        if(this.closed) return;
 
         // Převést buffer na string
         if(chunk instanceof Buffer){
@@ -108,7 +108,7 @@ export class VirtualTerminal implements Pseudoterminal{
         // Normalizovat řádky
         chunk = chunk.replace(/\n/g, "\r\n");
 
-        if(!this.Ready) this.lineQueue.push(chunk);
+        if(!this.ready) this.lineQueue.push(chunk);
         else this.onDidWriteEmitter.fire(chunk);
     }
 
@@ -117,8 +117,8 @@ export class VirtualTerminal implements Pseudoterminal{
      *
      * @param line Chybová hláška
      */
-    public ErrorLine(line: string){
-        this.WriteLine(colors.red(line));
+    public errorLine(line: string){
+        this.writeLine(colors.red(line));
     }
 
     /**
@@ -127,14 +127,14 @@ export class VirtualTerminal implements Pseudoterminal{
      *
      * @param mapping Slovník pro mapovaní ("docasny_soubor": "original")
      */
-    public LoadFilesMapping(mapping?: {[term: string]: string}){
-        this.FilesMapping = mapping;
+    public loadFilesMapping(mapping?: {[term: string]: string}){
+        this.filesMapping = mapping;
     }
 
     /**
      * Zruší mapování souborů(výstup se vypisuje tak, jak přichází)
      */
-    public RemoveFileMapping(){
-        this.LoadFilesMapping();
+    public removeFileMapping(){
+        this.loadFilesMapping();
     }
 }

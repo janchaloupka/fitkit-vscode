@@ -1,8 +1,9 @@
-import { ProjectConfig, FpgaOrderedSource } from '../models/ProjectConfigXml';
-import { Repository } from '../repository/Repository';
-import { Utils } from '../common/Utils';
-import { File, ProjectData } from '../models/ProjectData';
-import { ConfigParser } from '../common/ConfigParser';
+import { ProjectMcuData, ProjectFpgaData } from './../models/project-data.d';
+import { ProjectConfig, FpgaOrderedSource } from '../models/project-config-xml';
+import { Repository } from '../repository/repository';
+import { Utils } from '../common/utils';
+import { File, ProjectData } from '../models/project-data';
+import { ConfigParser } from '../common/config-parser';
 import { Uri, FileType } from "vscode";
 import * as path from "path";
 
@@ -17,19 +18,19 @@ import * as path from "path";
  * @param file Absolutní nebo relativní cesta k souboru
  * @param subdir Podadresář zdrojových souborů (typicky "mcu" nebo "fpga")
  */
-async function FileAbsolutePath(file: string, projectRoot: string, subdir: string): Promise<string>{
+async function fileAbsolutePath(file: string, projectRoot: string, subdir: string): Promise<string>{
     if(path.isAbsolute(file)) return file;
 
     let relativeToProject = path.join(projectRoot, file);
-    if(await Utils.FileExists(relativeToProject))
+    if(await Utils.fileExists(relativeToProject))
         return relativeToProject;
 
     let relativeToSubdir = path.join(projectRoot, subdir, file);
-    if(await Utils.FileExists(relativeToSubdir))
+    if(await Utils.fileExists(relativeToSubdir))
         return relativeToSubdir;
 
-    let relativeToRepository = path.join(Repository.Folder.Root, file);
-    if(await Utils.FileExists(relativeToRepository))
+    let relativeToRepository = path.join(Repository.folder.root, file);
+    if(await Utils.fileExists(relativeToRepository))
         return relativeToRepository;
 
     throw new Error(`File "${file}" was not found relative to project root ("${projectRoot}"), ${subdir} subdirectory or repository root`);
@@ -37,31 +38,32 @@ async function FileAbsolutePath(file: string, projectRoot: string, subdir: strin
 
 /**
  * Vyhledá a načte soubor za pomoci metody `FileAbsolutePath`.
- * Vrátí data a cestu k souboru ve struktuře, ktrou je možné použít při
+ * Vrátí data a cestu k souboru ve struktuře, kterou je možné použít při
  * sestavování objektu obsahující projektová data
  *
  * @param path Relativní nebo absolutní cesta k souboru
  * @param projectRoot Absolutní cesta k projektu
  * @param subdir Podadresář zdrojových souborů (typicky "mcu" nebo "fpga")
  */
-async function GetFileData(path: string, projectRoot: string, subdir: string): Promise<File>{
-    path = await FileAbsolutePath(path, projectRoot, subdir);
+async function getFileData(path: string, projectRoot: string, subdir: string): Promise<File>{
+    path = await fileAbsolutePath(path, projectRoot, subdir);
 
     return {
-        Path: path,
-        Content: (new Buffer(await Utils.ReadFile(path))).toString("base64")
+        path: path,
+        content: (new Buffer(await Utils.readFile(path))).toString("base64"),
+        binary: true
     };
 }
 
 /**
  * Pokud projekt specifikuje architekturu, přidá XML konfigurační soubor
  * do seznamu závislostí
- * @param project Daata popiující aktuálně parsovaný projekt
+ * @param project Data popisující aktuálně parsovaný projekt
  */
-function AppendArchitectureXml(project: ProjectConfig){
+function appendArchitectureXml(project: ProjectConfig){
     let arch = project.fpga?._architecture ?? "bare";
     if(arch === "none") return;
-    let archXml = path.join(Repository.Folder.LibFpga, "chips", `architecture_${arch}`, "package.xml");
+    let archXml = path.join(Repository.folder.libFpga, "chips", `architecture_${arch}`, "package.xml");
 
     let fpga = project.fpga ?? {};
 
@@ -99,7 +101,7 @@ interface ConfigStackItem extends ProjectConfig{
  * @param project Konfigurace aktuálního projektu
  * @param projectRoot Absolutní cesta ke kořenu projektu
  */
-async function AppendMcuFiles(request: ProjectData, project: ProjectConfig, projectRoot: string){
+async function appendMcuFiles(request: ProjectMcuData, project: ProjectConfig, projectRoot: string){
     let configs: ConfigStackItem[] = [
         {...project, root: projectRoot}
     ];
@@ -110,8 +112,8 @@ async function AppendMcuFiles(request: ProjectData, project: ProjectConfig, proj
         if(mcu.include){
             if(!(mcu.include instanceof Array)) mcu.include = [mcu.include];
             if (mcu.include.length > 0) {
-                let includePath = await FileAbsolutePath(mcu.include[0], configs[0].root, "mcu");
-                let includeXml = await ConfigParser.ProjectXml(includePath);
+                let includePath = await fileAbsolutePath(mcu.include[0], configs[0].root, "mcu");
+                let includeXml = await ConfigParser.projectXml(includePath);
                 configs.unshift({...includeXml, root: path.dirname(includePath)});
                 mcu.include.shift();
                 continue;
@@ -151,9 +153,9 @@ async function AppendMcuFiles(request: ProjectData, project: ProjectConfig, proj
 
         for (const file of mcu.file) {
             if(typeof file === "string"){
-                request.Mcu.Files.push(await GetFileData(file, configs[0].root, "mcu"));
+                request.files.push(await getFileData(file, configs[0].root, "mcu"));
             }else{
-                request.Mcu.Files.push(await GetFileData(file.$, configs[0].root, "mcu"));
+                request.files.push(await getFileData(file.$, configs[0].root, "mcu"));
             }
         }
 
@@ -163,14 +165,14 @@ async function AppendMcuFiles(request: ProjectData, project: ProjectConfig, proj
 
 /**
  * Načte všechny potřebné FPGA soubory, které jsou specifikovány ve všech
- * linkovaných project.xml. souboryj sou načené ve správném pořadí, přesně tak,
+ * linkovaných project.xml. soubory jsou načtené ve správném pořadí, přesně tak,
  * jak jsou definovány v konfiguračních souborech
  *
  * @param request Cílový objekt, kam se vloží všechny načtené soubory
  * @param project Konfigurace aktuálního projektu
  * @param projectRoot Absolutní cesta ke kořenu projektu
  */
-async function AppendFpgaFiles(request: ProjectData, project: ProjectConfig, projectRoot: string){
+async function appendFpgaFiles(request: ProjectFpgaData, project: ProjectConfig, projectRoot: string){
     let fpga = project.fpga ?? {};
     let sources: FpgaOrderedSource[] = [];
 
@@ -195,36 +197,36 @@ async function AppendFpgaFiles(request: ProjectData, project: ProjectConfig, pro
 
     for (const source of sources) {
         if(source.include){
-            let xmlPath = await FileAbsolutePath(source.include, projectRoot, "fpga");
-            await AppendFpgaFiles(request, await ConfigParser.ProjectXml(xmlPath), path.dirname(xmlPath));
+            let xmlPath = await fileAbsolutePath(source.include, projectRoot, "fpga");
+            await appendFpgaFiles(request, await ConfigParser.projectXml(xmlPath), path.dirname(xmlPath));
         }else if(source.files){
             if(typeof source.files === "string"){
                 for (const file of source.files.match(/\S+/g) ?? []) {
-                    request.Fpga.Files.push({
-                        ...(await GetFileData(file, projectRoot, "fpga")),
-                        SimOnly: false
+                    request.files.push({
+                        ...(await getFileData(file, projectRoot, "fpga")),
+                        simOnly: false
                     });
                 }
             }else{
                 for (const file of source.files.$.match(/\S+/g) ?? []) {
-                    request.Fpga.Files.push({
-                        ...(await GetFileData(file, projectRoot, "fpga")),
-                        SimOnly: source.files._context === "sim",
-                        Library: source.files._library
+                    request.files.push({
+                        ...(await getFileData(file, projectRoot, "fpga")),
+                        simOnly: source.files._context === "sim",
+                        library: source.files._library
                     });
                 }
             }
         }else if(source.file){
             if(typeof source.file === "string"){
-                request.Fpga.Files.push({
-                    ...(await GetFileData(source.file, projectRoot, "fpga")),
-                    SimOnly: false
+                request.files.push({
+                    ...(await getFileData(source.file, projectRoot, "fpga")),
+                    simOnly: false
                 });
             }else{
-                request.Fpga.Files.push({
-                    ...(await GetFileData(source.file.$, projectRoot, "fpga")),
-                    SimOnly: source.file._context === "sim",
-                    Library: source.file._library
+                request.files.push({
+                    ...(await getFileData(source.file.$, projectRoot, "fpga")),
+                    simOnly: source.file._context === "sim",
+                    library: source.file._library
                 });
             }
         }
@@ -236,84 +238,89 @@ async function AppendFpgaFiles(request: ProjectData, project: ProjectConfig, pro
  * za všech zdrojových a ostatních souborů potřebné pro kompilaci
  */
 export class ProjectDataBuilder{
-    public ProjectPath: string;
-    public ProjectXmlPath: string;
+    public projectPath: string;
+    public projectXmlPath: string;
 
     /** Cesta k výchozímu UCF souboru */
-    private static DefaultUcfFile = path.join(
-        Repository.Folder.LibFpga, "chips", "fpga_xc3s50.ucf");
+    private static defaultUcfFile = path.join(
+        Repository.folder.libFpga, "chips", "fpga_xc3s50.ucf");
 
     constructor(projectPath: Uri | string, projectXml: string = "project.xml"){
-        this.ProjectPath = typeof projectPath === "string" ? projectPath : projectPath.fsPath;
-        this.ProjectXmlPath = path.join(this.ProjectPath, projectXml);
+        this.projectPath = typeof projectPath === "string" ? projectPath : projectPath.fsPath;
+        this.projectXmlPath = path.join(this.projectPath, projectXml);
     }
 
     /**
      * Vytvořit objekt se všemi potřebnými daty pro překlad tohoto projektu
      */
-    public async Create(): Promise<ProjectData>{
-        let mcuProjectRoot = this.ProjectPath;
-        let fpgaProjectRoot = this.ProjectPath;
-        let project = await ConfigParser.ProjectXml(this.ProjectXmlPath);
+    public async create(): Promise<ProjectData>{
+        let mcuProjectRoot = this.projectPath;
+        let fpgaProjectRoot = this.projectPath;
+        let project = await ConfigParser.projectXml(this.projectXmlPath);
 
         while(project.fpga?._use){
             // Použít FPGA část odkazovaného projektu
-            let useProjectPath = await FileAbsolutePath(project.fpga._use, this.ProjectPath, "fpga");
-            let useProject = await ConfigParser.ProjectXml(useProjectPath);
+            let useProjectPath = await fileAbsolutePath(project.fpga._use, this.projectPath, "fpga");
+            let useProject = await ConfigParser.projectXml(useProjectPath);
             project.fpga = useProject.fpga;
             fpgaProjectRoot = path.dirname(useProjectPath);
         }
 
         // Základní kostra dat projektu
+        let fpgaData: ProjectFpgaData = {
+            usesArchitecture: (project.fpga?._architecture) !== "none",
+            dcmFrequency: project.fpga?._dcmfrequency ?? "25MHz",
+            topLevelEntity: project.fpga?._toplevelentity ?? "fpga",
+            chip: project.fpga?._fpgachip ?? "xc3s50-4-pq208",
+            optimization: project.fpga?._optimization ?? "speed:1",
+            library: project.fpga?._library ?? "work",
+            ucfFile: await getFileData(project.fpga?._ucffile ?? ProjectDataBuilder.defaultUcfFile, this.projectPath, "fpga"),
+            files: []
+        };
+
+        let mcuData: ProjectMcuData = {
+            useMathLib: project.mcu?._mathlibrary === "yes",
+            files: [],
+            headers: []
+        };
+
         let data: ProjectData = {
-            Version: "1.0.0",
-            Mcu: {
-                UseMathLib: project.mcu?._mathlibrary === "yes",
-                Files: [],
-                Headers: []
-            },
-            Fpga: {
-                UseArchitecture: (project.fpga?._architecture) !== "none",
-                DcmFrequency: project.fpga?._dcmfrequency ?? "25MHz",
-                TopLevelEntity: project.fpga?._toplevelentity ?? "fpga",
-                Chip: project.fpga?._fpgachip ?? "xc3s50-4-pq208",
-                Optimization: project.fpga?._optimization ?? "speed:1",
-                Library: project.fpga?._library ?? "work",
-                UcfFile: await GetFileData(project.fpga?._ucffile ?? ProjectDataBuilder.DefaultUcfFile, this.ProjectPath, "fpga"),
-                Files: []
-            }
+            mcu: mcuData,
+            fpga: fpgaData
         };
 
         // Načtení konfiguračního souboru ISIM
         try{
-            const isimFile = path.join(this.ProjectPath, "fpga", "sim", "isim.tcl");
-            data.Fpga.IsimFile = {
-                Path: isimFile,
-                Content: (new Buffer(await Utils.ReadFile(isimFile))).toString("base64")
+            const isimFile = path.join(this.projectPath, "fpga", "sim", "isim.tcl");
+            fpgaData.isimFile = {
+                path: isimFile,
+                content: (new Buffer(await Utils.readFile(isimFile))).toString("base64"),
+                binary: true
             };
         }catch(e){
             console.log("Project does not contain ISIM configuration file");
         }
 
         // Načíst všechny potřebné zdrojové soubory
-        AppendArchitectureXml(project);
-        await AppendFpgaFiles(data, project, fpgaProjectRoot);
-        await AppendMcuFiles(data, project, mcuProjectRoot);
+        appendArchitectureXml(project);
+        await appendFpgaFiles(fpgaData, project, fpgaProjectRoot);
+        await appendMcuFiles(mcuData, project, mcuProjectRoot);
 
         // Přidat soubory simulace (testbench soubory)
-        const simPath = path.join(this.ProjectPath, "fpga", "sim");
+        const simPath = path.join(this.projectPath, "fpga", "sim");
         try{
-            const simFolderContent = await Utils.ReadDirectory(simPath);
+            const simFolderContent = await Utils.readDirectory(simPath);
 
             for (const item of simFolderContent) {
                 if(item[1] !== FileType.File) continue;
                 if(!item[0].endsWith(".vhd") && !item[0].endsWith(".vhdl")) continue;
 
                 const filePath = path.join(simPath, item[0]);
-                data.Fpga.Files.push({
-                    Path: filePath,
-                    Content: (new Buffer(await Utils.ReadFile(filePath))).toString("base64"),
-                    SimOnly: true
+                fpgaData.files.push({
+                    path: filePath,
+                    content: (new Buffer(await Utils.readFile(filePath))).toString("base64"),
+                    simOnly: true,
+                    binary: true
                 });
             }
         }catch(e){
@@ -321,23 +328,23 @@ export class ProjectDataBuilder{
         }
 
         // Odstranit duplikátní soubory (zůstane vždy první reference na soubor)
-        data.Fpga.Files = data.Fpga.Files.filter((f, i) => {
-            let findex = data.Fpga.Files.findIndex(find => find.Path === f.Path);
+        fpgaData.files = fpgaData.files.filter((f, i) => {
+            let findex = fpgaData.files.findIndex(find => find.path === f.path);
             return i === findex;
         });
 
         // Odstranit duplikátní soubory (zůstane vždy první reference na soubor)
-        data.Mcu.Files = data.Mcu.Files.filter((f, i) => {
-            let findex = data.Mcu.Files.findIndex(find => find.Path === f.Path);
+        mcuData.files = mcuData.files.filter((f, i) => {
+            let findex = mcuData.files.findIndex(find => find.path === f.path);
             return i === findex;
         });
 
         // Vložit všechny hlavičkové soubory, které se nachází ve stejných složkách jako
         // linkované .c soubory
-        for (const src of data.Mcu.Files) {
-            const p = path.dirname(src.Path);
+        for (const src of mcuData.files) {
+            const p = path.dirname(src.path);
 
-            let dir = await Utils.ReadDirectory(p);
+            let dir = await Utils.readDirectory(p);
             for (const item of dir) {
                 if(item[1] !== FileType.File) continue;
                 if(!item[0].endsWith(".h")) continue;
@@ -345,11 +352,12 @@ export class ProjectDataBuilder{
                 const headerPath = path.join(p, item[0]);
 
                 // kontrola jestli už neexistuje
-                if(data.Mcu.Headers.find(h => h.Path === headerPath)) continue;
+                if(mcuData.headers.find(h => h.path === headerPath)) continue;
 
-                data.Mcu.Headers.push({
-                    Path: headerPath,
-                    Content: (new Buffer(await Utils.ReadFile(headerPath))).toString("base64")
+                mcuData.headers.push({
+                    path: headerPath,
+                    content: (new Buffer(await Utils.readFile(headerPath))).toString("base64"),
+                    binary: true
                 });
             }
         }

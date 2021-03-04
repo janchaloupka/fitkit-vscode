@@ -1,13 +1,13 @@
-import { Utils } from './../common/Utils';
+import { Utils } from './../common/utils';
 import { BuildResult } from './../models/BuildResult';
 import { Disposable } from 'vscode';
-import { Connection } from '../remote/Connection';
-import { ProjectData } from '../models/ProjectData';
-import { VirtualTerminal } from '../common/VirtualTerminal';
+import { Connection } from '../remote/connection';
+import { ProjectData } from '../models/project-data';
+import { VirtualTerminal } from '../common/virtual-terminal';
 import { window, Terminal, EventEmitter } from 'vscode';
 import * as colors from "colors/safe";
 import { join } from 'path';
-import { ExtensionConfig } from '../ExtensionConfig';
+import { ExtensionConfig } from '../extension-config';
 
 /**
  * Logika pro ovládání a přijímání zpráv o vzdáleném překladu
@@ -15,116 +15,116 @@ import { ExtensionConfig } from '../ExtensionConfig';
 export class Build{
     private onDidCloseEmitter = new EventEmitter<void>();
 
-    private Terminal: Terminal;
-    private VirtualTerminal: VirtualTerminal;
-    private ProjectData: ProjectData;
-    private Connection?: Connection;
+    private terminal: Terminal;
+    private virtualTerminal: VirtualTerminal;
+    private projectData: ProjectData;
+    private connection?: Connection;
 
-    public readonly Path: string;
+    public readonly path: string;
 
     /** Seznam všech prvků, které je nutné po ukončení uklidit. Většinou event listenery */
-    private Disposables: Disposable[] = [];
+    private disposables: Disposable[] = [];
 
     /** Indikátor, zda se hláška o zařazení do fronty zobrazuje poprvé */
-    private QueueFirstTime = true;
+    private queueFirstTime = true;
 
     /** Došlo k ukončení překladu */
     public readonly onDidClose = this.onDidCloseEmitter.event;
 
     public constructor(project: ProjectData, path: string){
-        this.ProjectData = project;
+        this.projectData = project;
 
-        this.Path = path;
+        this.path = path;
 
-        this.VirtualTerminal = new VirtualTerminal();
-        this.Disposables.push(this.VirtualTerminal.onDidClose(() => this.Close()));
+        this.virtualTerminal = new VirtualTerminal();
+        this.disposables.push(this.virtualTerminal.onDidClose(() => this.close()));
 
-        this.Terminal = window.createTerminal({
+        this.terminal = window.createTerminal({
             name: "Remote Build",
-            pty: this.VirtualTerminal
+            pty: this.virtualTerminal
         });
-        this.Terminal.show();
+        this.terminal.show();
     }
 
     /**
      * Spustit překlad
      *
-     * Překlad se nespustí ihned, ale nevázě se spojení se serverem a pošle se
-     * požadavek na spuštení překladu
+     * Překlad se nespustí ihned, ale naváže se spojení se serverem a pošle se
+     * požadavek na spuštění překladu
      */
-    public async Init(){
-        this.WriteLine("[LOCAL] Establishing connection to build server...");
+    public async init(){
+        this.writeLine("[LOCAL] Establishing connection to build server...");
 
         try{
-            this.Connection = await Connection.GetActiveConnection();
+            this.connection = await Connection.getActiveConnection();
         }catch(e){
-            this.ErrorLine(`[LOCAL] ${e.toString()}`);
-            this.Close();
+            this.errorLine(`[LOCAL] ${e.toString()}`);
+            this.close();
             return;
         }
 
-        if(ExtensionConfig.LogDebugInfo){
-            const logPath = join(this.Path, "server_communication.log");
+        if(ExtensionConfig.logDebugInfo){
+            const logPath = join(this.path, "server_communication.log");
             try{
-                await Utils.DeletePath(logPath);
+                await Utils.deletePath(logPath);
             }catch(e){}
-            this.Connection.LogPath = logPath;
+            this.connection.LogPath = logPath;
         }else
-            this.Connection.LogPath = undefined;
+            this.connection.LogPath = undefined;
 
-        this.Disposables.push(
-            this.Connection.onBuildBegin(() => this.Begin()),
-            this.Connection.onBuildStderr(line => this.ErrorLine(line)),
-            this.Connection.onBuildStdout(line => this.WriteLine(line)),
-            this.Connection.onBuildEnd(res => this.Close(res)),
-            this.Connection.onBuildQueue(info => this.SendQueueInfo(info.pos, info.size)),
-            this.Connection.onProjectMapping(map => this.VirtualTerminal.LoadFilesMapping(map)),
-            this.Connection.onServerError(err => this.ErrorLine(`Server error: ${err}`)),
-            this.Connection.onDidClose(() => this.Close())
+        this.disposables.push(
+            this.connection.onBuildBegin(() => this.begin()),
+            this.connection.onBuildStderr(line => this.errorLine(line)),
+            this.connection.onBuildStdout(line => this.writeLine(line)),
+            this.connection.onBuildEnd(res => this.close(res)),
+            this.connection.onBuildQueue(info => this.sendQueueInfo(info.pos, info.size)),
+            this.connection.onProjectMapping(map => this.virtualTerminal.loadFilesMapping(map)),
+            this.connection.onServerError(err => this.errorLine(`Server error: ${err}`)),
+            this.connection.onDidClose(() => this.close())
         );
 
-        if(this.Connection.Connected){
-            this.SendRequest();
+        if(this.connection.connected){
+            this.sendRequest();
             return;
         }
 
-        this.Disposables.push(
-            this.Connection.onDidConnect(() => this.SendRequest())
+        this.disposables.push(
+            this.connection.onDidConnect(() => this.sendRequest())
         );
     }
 
     /**
      * Poslat zprávu o zahájení simulace
      */
-    private SendRequest(){
-        this.WriteLine("[LOCAL] Connection established. Sending build request...");
-        this.Connection?.Send({
+    private sendRequest(){
+        this.writeLine("[LOCAL] Connection established. Sending build request...");
+        this.connection?.send({
             type: "build-begin",
-            data: this.ProjectData
+            data: this.projectData
         });
     }
 
     /**
      * Překlad začal
      */
-    private Begin(){
-        this.WriteLine("[LOCAL] Build started on remote server");
+    private begin(){
+        this.writeLine("[LOCAL] Build started on remote server");
     }
 
     /**
      * Vypsat informační řádek do terminálu (ekvivalent stdout)
      * @param line Řádek textu pro vypsání
      */
-    private WriteLine(line: string){
-        this.VirtualTerminal.WriteLine(line);
+    private writeLine(line: string){
+        this.virtualTerminal.writeLine(line);
     }
 
     /**
      * Vypsat chybový řádek do terminálu (ekvivalent stderr)
      * @param line Řádek chyby pro vypsání
      */
-    private ErrorLine(line: string){
-        this.VirtualTerminal.ErrorLine(line);
+    private errorLine(line: string){
+        this.virtualTerminal.errorLine(line);
     }
 
     /**
@@ -132,75 +132,75 @@ export class Build{
      * @param pos Pozice tohoto požadavku ve frontě
      * @param size Celkové délka fronty
      */
-    private SendQueueInfo(pos: number, size: number){
-        if(this.QueueFirstTime){
-            this.WriteLine("");
-            this.WriteLine(colors.yellow("[LOCAL] Unfortunately, the server is at maximum capacity. Your task has been placed in queue."));
-            this.WriteLine(colors.yellow("[LOCAL] You can cancel this task by killing this terminal (note that by doing this you will loose your position in the queue)"));
-            this.WriteLine("");
-            this.QueueFirstTime = false;
+    private sendQueueInfo(pos: number, size: number){
+        if(this.queueFirstTime){
+            this.writeLine("");
+            this.writeLine(colors.yellow("[LOCAL] Unfortunately, the server is at maximum capacity. Your task has been placed in queue."));
+            this.writeLine(colors.yellow("[LOCAL] You can cancel this task by killing this terminal (note that by doing this you will loose your position in the queue)"));
+            this.writeLine("");
+            this.queueFirstTime = false;
         }
-        this.WriteLine(`[LOCAL] Your current position in the queue: ${pos} out of ${size} waiting task(s)`);
+        this.writeLine(`[LOCAL] Your current position in the queue: ${pos} out of ${size} waiting task(s)`);
         if(pos === 1)
-            this.WriteLine("[LOCAL] You are first in the queue. Expect your task to start soon...");
+            this.writeLine("[LOCAL] You are first in the queue. Expect your task to start soon...");
     }
 
     /**
-     * Uknončit překlad
+     * Ukončit překlad
      *
      * @param res Je specifikován, pokud překlad ukončil server (úspěšně nebo neúspěšně)
      */
-    public async Close(res?: BuildResult){
+    public async close(res?: BuildResult){
         // Uklidit všechny zachytávače eventů
-        this.Disposables.forEach(d => d.dispose());
+        this.disposables.forEach(d => d.dispose());
 
         // Říci serveru (pokud ještě existuje), že překlad byl ukončena
-        if(this.Connection) this.Connection.Send({type: "build-end"});
+        if(this.connection) this.connection.send({type: "build-end"});
 
-        if(res) await this.SaveBinFiles(res);
+        if(res) await this.saveBinFiles(res);
 
-        this.VirtualTerminal.AnyKeyToClose();
+        this.virtualTerminal.anyKeyToClose();
 
         this.onDidCloseEmitter.fire();
 
-        if(this.Connection) this.Connection.LogPath = undefined;
+        if(this.connection) this.connection.LogPath = undefined;
     }
 
-    private async SaveBinFiles(res: BuildResult){
+    private async saveBinFiles(res: BuildResult){
         if(res.ExitStatus === 0){
-            this.VirtualTerminal.WriteLine(colors.green("\n\n[LOCAL] BUILD SUCCESS! Saving files..."));
+            this.virtualTerminal.writeLine(colors.green("\n\n[LOCAL] BUILD SUCCESS! Saving files..."));
         }
 
-        const buildFolder = join(this.Path, "build");
+        const buildFolder = join(this.path, "build");
 
         if(res.FpgaBinary){
-            Utils.CreateDirectory(buildFolder);
-            Utils.WriteFile(
+            Utils.createDirectory(buildFolder);
+            Utils.writeFile(
                 join(buildFolder, "output.bin"),
                 new Buffer(res.FpgaBinary, "base64")
             );
 
-            this.VirtualTerminal,this.WriteLine(colors.green("[LOCAL] FPGA bin file saved to build/output.bin"));
+            this.virtualTerminal,this.writeLine(colors.green("[LOCAL] FPGA bin file saved to build/output.bin"));
         }
 
         if(res.McuV1Binary){
-            Utils.CreateDirectory(buildFolder);
-            Utils.WriteFile(
+            Utils.createDirectory(buildFolder);
+            Utils.writeFile(
                 join(buildFolder, "output_f1xx.hex"),
                 new Buffer(res.McuV1Binary, "base64")
             );
 
-            this.VirtualTerminal,this.WriteLine(colors.green("[LOCAL] MCU v1.x file saved to build/output_f1xx.hex"));
+            this.virtualTerminal,this.writeLine(colors.green("[LOCAL] MCU v1.x file saved to build/output_f1xx.hex"));
         }
 
         if(res.McuV2Binary){
-            Utils.CreateDirectory(buildFolder);
-            Utils.WriteFile(
+            Utils.createDirectory(buildFolder);
+            Utils.writeFile(
                 join(buildFolder, "output_f2xx.hex"),
                 new Buffer(res.McuV2Binary, "base64")
             );
 
-            this.VirtualTerminal,this.WriteLine(colors.green("[LOCAL] MCU v2.x file saved to build/output_f2xx.hex"));
+            this.virtualTerminal,this.writeLine(colors.green("[LOCAL] MCU v2.x file saved to build/output_f2xx.hex"));
         }
     }
 }

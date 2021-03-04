@@ -1,12 +1,12 @@
-import { Utils } from './Utils';
+import { Utils } from './utils';
 import { assertType } from "typescript-is";
 import { Uri } from 'vscode';
 import { parse, j2xParser, X2jOptions } from "fast-xml-parser";
-import { CategoryConfigXml } from '../models/CategoryConfigXml';
-import { ProjectConfigXml, ProjectConfig } from '../models/ProjectConfigXml';
+import { CategoryConfigXml } from '../models/category-config-xml';
+import { ProjectConfigXml, ProjectConfig } from '../models/project-config-xml';
 
 /**
- * Třída obsahující metody pro získání dat konfiguračních souborů z FITkit repozitáře
+ * Třída obsahující metody pro získání dat konfiguračních souborů z FITkit repositáře
  */
 export class ConfigParser{
     /**
@@ -16,7 +16,7 @@ export class ConfigParser{
      * @param xml Řetězec obsahující XML data
      * @param options Dodatečné argumenty XML parsování
      */
-    private static ParseXml(xml: string, options?: Partial<X2jOptions>): any{
+    private static parseXml(xml: string, options?: Partial<X2jOptions>): any{
         return parse(xml, {
             attributeNamePrefix: "_",
             ignoreAttributes: false,
@@ -41,8 +41,8 @@ export class ConfigParser{
      *
      * @param path Cesta ke konfiguračnímu XML souboru projektu
      */
-    public static async ProjectXml(path: Uri | string): Promise<ProjectConfig>{
-        let parsedXml = this.ParseXml(await Utils.ReadTextFile(path), {
+    public static async projectXml(path: Uri | string): Promise<ProjectConfig>{
+        let parsedXml = this.parseXml(await Utils.readTextFile(path), {
             stopNodes: ["fpga"]
         });
 
@@ -53,7 +53,7 @@ export class ConfigParser{
         }
 
         if(project?.fpga?.$){
-            let files = this.ParseXml(`<fpga>${project.fpga.$}</fpga>`, {
+            let files = this.parseXml(`<fpga>${project.fpga.$}</fpga>`, {
                 preserveOrder: true
             });
 
@@ -67,7 +67,7 @@ export class ConfigParser{
             if(config.project) return {...config.project, type: "project"};
             if(config.package) return {...config.package, type: "package"};
             if(config.library) return {...config.library, type: "library"};
-            throw new Error("Incorect XML config root node");
+            throw new Error("Incorrect XML config root node");
         }catch(e){
             if(typeof path !== "string") path = path.fsPath;
             throw new Error(`Error while parsing XML project config "${path}"\n${(<Error>e).message}`);
@@ -80,8 +80,8 @@ export class ConfigParser{
      *
      * @param path Cesta ke konfiguračnímu XML souboru kategorie
      */
-    public static async CategoryXml(path: Uri | string): Promise<CategoryConfigXml>{
-        let config = this.ParseXml(await Utils.ReadTextFile(path));
+    public static async categoryXml(path: Uri | string): Promise<CategoryConfigXml>{
+        let config = this.parseXml(await Utils.readTextFile(path));
         assertType<CategoryConfigXml>(config);
         return config;
     }
@@ -91,7 +91,7 @@ export class ConfigParser{
      *
      * @param config Objekt reprezentující kategorii nebo FITkit projekt
      */
-    public static ToXml(config: CategoryConfigXml | ProjectConfigXml): string{
+    public static toXml(config: CategoryConfigXml | ProjectConfigXml): string{
         let res = this.JsonParser.parse(config);
         if(typeof res !== "string")
             throw new Error("Failed to create XML from JSON");

@@ -1,25 +1,25 @@
 import { assertType } from 'typescript-is';
-import { ClientMessage } from './../models/ClientMessage';
-import { ServerMessage } from './../models/ServerMessage';
+import { ClientMessage } from './../models/client-message';
+import { ServerMessage } from './../models/server-message';
 import { client as WebSocketClient, IClientConfig, connection, IMessage } from "websocket";
 import * as url from "url";
 import { EventEmitter, Disposable, StatusBarItem, window, StatusBarAlignment } from 'vscode';
 import { BuildResult } from '../models/BuildResult';
 import { Authentication } from '../auth/Authentication';
-import { ExtensionConfig } from '../ExtensionConfig';
+import { ExtensionConfig } from '../extension-config';
 import { promises as fs} from "fs";
 
 /**
  * Singleton třída spojení s překladovým serverem
  */
 export class Connection{
-    private static ActiveConnection?: Connection;
+    private static activeConnection?: Connection;
 
     /** Instance WebSocket spojení. Je dostupná až po handshake */
-    private Connection?: connection;
+    private connection?: connection;
 
     /** Ukazatel na stavový text zobrazený vespod editoru */
-    private static Status?: StatusBarItem;
+    private static status?: StatusBarItem;
 
     private onDidConnectEmitter = new EventEmitter<void>();
     private onDidCloseEmitter = new EventEmitter<number>();
@@ -57,7 +57,7 @@ export class Connection{
     /** Nový řádek výstupu sestavení */
     public readonly onBuildStdout = this.onBuildStdoutEmitter.event;
 
-    /** Spuštení simulace */
+    /** Spuštění simulace */
     public readonly onIsimBegin = this.onIsimBeginEmitter.event;
 
     /** Ukončení simulace */
@@ -82,16 +82,16 @@ export class Connection{
     public LogPath?: string;
 
     /** Je navázáno a otevřeno spojení se serverem */
-    public get Connected() : boolean {
-        if(!this.Connection) return false;
-        return this.Connection.connected;
+    public get connected() : boolean {
+        if(!this.connection) return false;
+        return this.connection.connected;
 
     }
 
     /** Server ukončil spojení */
-    public get IsClosed(): boolean {
-        if(!this.Connection) return false;
-        return this.Connection.closeReasonCode > -1;
+    public get isClosed(): boolean {
+        if(!this.connection) return false;
+        return this.connection.closeReasonCode > -1;
     }
 
     /**
@@ -102,32 +102,32 @@ export class Connection{
      * @param config Volitelná konfigurace WebSocket spojení
      */
     public constructor(token: string, host: string, config?: IClientConfig){
-        if(!Connection.Status){
-            Connection.Status = window.createStatusBarItem();
-            Connection.Status.command = "fitkit.disconnect";
-            Connection.Status.tooltip = "Click to disconnect from server";
+        if(!Connection.status){
+            Connection.status = window.createStatusBarItem();
+            Connection.status.command = "fitkit.disconnect";
+            Connection.status.tooltip = "Click to disconnect from server";
         }
 
-        Connection.Status.show();
-        Connection.Status.text = "Connecting to build server...";
+        Connection.status.show();
+        Connection.status.text = "Connecting to build server...";
 
         let request = url.parse(`ws://${host}/`);
         request.port = request.port ?? "9000";
 
         let client = new WebSocketClient(config);
-        client.on("connect", conn => this.Accepted(conn));
+        client.on("connect", conn => this.accepted(conn));
         client.on("connectFailed", err => {
             console.error(err);
 
             let errMsg = err.message;
             if(errMsg.includes("401 Unauthorized")){
-                Authentication.Invalidate();
+                Authentication.invalidate();
                 errMsg += "\n\nYou local auth token has been removed. You will be prompted to authorize on next connection.";
             }
             this.onServerErrorEmitter.fire(errMsg);
             this.onDidCloseEmitter.fire(-1);
 
-            Connection.Status?.hide();
+            Connection.status?.hide();
         });
 
         console.log("Connecting to ", request.href, "with token", token);
@@ -142,13 +142,13 @@ export class Connection{
      *
      * @param connection Nově vytvořené WebSocket spojení
      */
-    private Accepted(connection: connection){
+    private accepted(connection: connection){
         console.log(`Connected to remote server`);
-        if(Connection.Status) Connection.Status.text = "Connected to build server";
+        if(Connection.status) Connection.status.text = "Connected to build server";
 
-        this.Connection = connection;
-        connection.on("message", data => this.ReceiveMessage(data));
-        connection.on("close", code => this.Closed(code));
+        this.connection = connection;
+        connection.on("message", data => this.receiveMessage(data));
+        connection.on("close", code => this.closed(code));
 
         this.onDidConnectEmitter.fire();
     }
@@ -156,11 +156,11 @@ export class Connection{
     /**
      * Spojení se serverrem bylo uzavřeno
      */
-    private Closed(code: number){
+    private closed(code: number){
         console.log(`Connection closed (code: ${code})`);
 
         this.onDidCloseEmitter.fire(code);
-        Connection.Status?.hide();
+        Connection.status?.hide();
     }
 
     /**
@@ -168,14 +168,14 @@ export class Connection{
      *
      * @param msg Zpráva ve správném formátu
      */
-    public Send(msg: ClientMessage){
-        if(!this.Connection?.connected) return;
+    public send(msg: ClientMessage){
+        if(!this.connection?.connected) return;
 
         if(this.LogPath){
             fs.appendFile(this.LogPath, `[CLIENT] ${JSON.stringify(msg, null, "    ")}\n`);
         }
 
-        this.Connection.sendUTF(JSON.stringify(msg));
+        this.connection.sendUTF(JSON.stringify(msg));
     }
 
     /**
@@ -183,7 +183,7 @@ export class Connection{
      *
      * @param data WebSocket data zprávy
      */
-    private ReceiveMessage(data: IMessage){
+    private receiveMessage(data: IMessage){
         if(data.type !== "utf8") return;
 
         let msg: ServerMessage;
@@ -244,21 +244,21 @@ export class Connection{
         }
     }
 
-    public static async GetActiveConnection(): Promise<Connection>{
-        if(this.ActiveConnection?.Connected) return this.ActiveConnection;
+    public static async getActiveConnection(): Promise<Connection>{
+        if(this.activeConnection?.connected) return this.activeConnection;
 
         const conn = new Connection(
-            await Authentication.GetToken(),
-            ExtensionConfig.RemoteServerIp
+            await Authentication.getToken(),
+            ExtensionConfig.remoteServerIp
         );
 
-        this.ActiveConnection = conn;
+        this.activeConnection = conn;
         return conn;
     }
 
-    public static DisconnectFromServer(){
-        if(this.ActiveConnection?.Connected){
-            this.ActiveConnection.Connection?.close();
+    public static disconnectFromServer(){
+        if(this.activeConnection?.connected){
+            this.activeConnection.connection?.close();
         }
     }
 }

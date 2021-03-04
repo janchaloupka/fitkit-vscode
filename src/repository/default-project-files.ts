@@ -1,5 +1,5 @@
 /** Výchozí main.c po vytvoření nového projektu */
-export const DefaultMCUFile = `#include <fitkitlib.h>
+export const defaultMCUFile = `#include <fitkitlib.h>
 
 /**
  * Vypis uzivatelske napovedy (funkce se vola pri vykonavani prikazu "help")
@@ -53,7 +53,7 @@ int main(void)
 `;
 
 /** Výchozí top.vhd po vytvoření nového projektu */
-export const DefaultTopVHDLFile = `library ieee;
+export const defaultTopVHDLFile = `library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
@@ -66,7 +66,7 @@ end main;
 `;
 
 /** Výchozí testbench nového projektu */
-export const DefaultTestBench = `library ieee;
+export const defaultTestBench = `library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
@@ -163,7 +163,7 @@ end architecture behavioral;
 `;
 
 /** Výchozí isim.tcl nového projektu */
-export const DefaultIsimScript = `# sim.tcl : ISIM simulation script
+export const defaultIsimScript = `# sim.tcl : ISIM simulation script
 # Copyright (C) 2011 Brno University of Technology,
 #                    Faculty of Information Technology
 # Author(s): Zdenek Vasicek
