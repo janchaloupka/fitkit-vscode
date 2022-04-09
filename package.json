@@ -301,7 +301,7 @@
 		"fast-xml-parser": "git+https://github.com/MaartenX/fast-xml-parser.git#feature/197",
 		"fullname": "^4.0.1",
 		"latinize": "^0.4.0",
-		"moment": "^2.25.1",
+		"moment": "^2.29.2",
 		"open": "^7.0.3",
 		"request": "^2.88.0",
 		"request-promise-native": "^1.0.8",
